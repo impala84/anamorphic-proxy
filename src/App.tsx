@@ -162,7 +162,7 @@ function App() {
     <main>
       <header>
         <div className="mark"><img src="/deproxy-logo.svg" alt="" /></div>
-        <div><h1>DeProxy</h1><p>Hardware-accelerated anamorphic proxies</p></div>
+        <p>Hardware-accelerated anamorphic proxies</p>
         <div className={`status ${tools?.ffmpeg && tools?.ffprobe ? "ok" : "bad"}`}>
           {tools === null ? "Checking tools…" : tools.ffmpeg && tools.ffprobe ? <><Check size={13} /> FFmpeg ready</> : <><CircleAlert size={13} /> FFmpeg missing</>}
         </div>
