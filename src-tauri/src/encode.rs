@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         mpsc, Arc, Mutex,
     },
     thread,
@@ -38,6 +38,8 @@ pub struct BatchConfig {
     pub source_dir: String,
     pub output_dir: String,
     pub filename_suffix: String,
+    pub codec: String,
+    pub prores_profile: String,
     pub squeeze: f64,
     pub output_height: u32,
     pub bitrate_mbps: f64,
@@ -68,6 +70,8 @@ pub struct BatchProgress {
     skipped_files: usize,
     kind: String,
     message: Option<String>,
+    source_bytes: u64,
+    output_bytes: u64,
 }
 
 #[derive(Default)]
@@ -80,6 +84,8 @@ struct Counts {
     complete: AtomicUsize,
     failed: AtomicUsize,
     skipped: AtomicUsize,
+    source_bytes: AtomicU64,
+    output_bytes: AtomicU64,
 }
 
 impl BatchManager {
@@ -137,6 +143,17 @@ pub fn derive_width(
 ) -> u32 {
     let raw = source_width as f64 / source_height as f64 * squeeze * output_height as f64;
     ((raw / 2.0).round() * 2.0) as u32
+}
+
+pub fn effective_parallel_jobs(config: &BatchConfig) -> usize {
+    if config.codec == "prores-proxy" {
+        config
+            .parallel_jobs
+            .min(if config.output_height >= 2160 { 1 } else { 2 })
+            .max(1)
+    } else {
+        config.parallel_jobs.clamp(1, 8)
+    }
 }
 
 pub fn probe_file(path: &Path) -> Result<ProbeInfo, String> {
@@ -202,6 +219,19 @@ pub fn output_path(source: &Path, output_dir: &Path, suffix: &str) -> Result<Pat
     Ok(output_dir.join(format!("{stem}{suffix}.mp4")))
 }
 
+fn output_path_for_config(source: &Path, config: &BatchConfig) -> Result<PathBuf, String> {
+    let path = output_path(
+        source,
+        Path::new(&config.output_dir),
+        &config.filename_suffix,
+    )?;
+    Ok(if config.codec == "prores-proxy" {
+        path.with_extension("mov")
+    } else {
+        path
+    })
+}
+
 pub fn ffmpeg_args(
     source: &Path,
     temporary: &Path,
@@ -239,21 +269,73 @@ pub fn ffmpeg_args(
             "trim=start=0,scale={width}:{}:flags=lanczos,setsar=1,setpts=PTS-STARTPTS",
             config.output_height
         ),
-        "-c:v".into(),
-        "hevc_videotoolbox".into(),
-        "-profile:v".into(),
-        "main10".into(),
-        "-pix_fmt".into(),
-        "p010le".into(),
-        "-tag:v".into(),
-        "hvc1".into(),
-        "-b:v".into(),
-        bitrate.clone(),
-        "-maxrate".into(),
-        bitrate,
-        "-bufsize".into(),
-        buffer,
     ]);
+    match config.codec.as_str() {
+        "hevc" => args.extend([
+            "-c:v".into(),
+            "hevc_videotoolbox".into(),
+            "-profile:v".into(),
+            "main".into(),
+            "-pix_fmt".into(),
+            "nv12".into(),
+            "-tag:v".into(),
+            "hvc1".into(),
+            "-b:v".into(),
+            bitrate.clone(),
+            "-maxrate".into(),
+            bitrate,
+            "-bufsize".into(),
+            buffer,
+        ]),
+        "h264" => args.extend([
+            "-c:v".into(),
+            "h264_videotoolbox".into(),
+            "-profile:v".into(),
+            "high".into(),
+            "-pix_fmt".into(),
+            "nv12".into(),
+            "-tag:v".into(),
+            "avc1".into(),
+            "-b:v".into(),
+            bitrate.clone(),
+            "-maxrate".into(),
+            bitrate,
+            "-bufsize".into(),
+            buffer,
+        ]),
+        "prores-proxy" => args.extend([
+            "-c:v".into(),
+            "prores_ks".into(),
+            "-profile:v".into(),
+            match config.prores_profile.as_str() {
+                "lt" => "1",
+                "standard" => "2",
+                "hq" => "3",
+                _ => "0",
+            }
+            .into(),
+            "-pix_fmt".into(),
+            "yuv422p10le".into(),
+            "-vendor".into(),
+            "apl0".into(),
+        ]),
+        _ => args.extend([
+            "-c:v".into(),
+            "hevc_videotoolbox".into(),
+            "-profile:v".into(),
+            "main10".into(),
+            "-pix_fmt".into(),
+            "p010le".into(),
+            "-tag:v".into(),
+            "hvc1".into(),
+            "-b:v".into(),
+            bitrate.clone(),
+            "-maxrate".into(),
+            bitrate,
+            "-bufsize".into(),
+            buffer,
+        ]),
+    }
     if config.include_audio {
         args.extend([
             "-af".into(),
@@ -310,6 +392,8 @@ fn emit(
             skipped_files: counts.skipped.load(Ordering::SeqCst),
             kind: kind.into(),
             message,
+            source_bytes: counts.source_bytes.load(Ordering::SeqCst),
+            output_bytes: counts.output_bytes.load(Ordering::SeqCst),
         },
     );
 }
@@ -336,11 +420,7 @@ fn encode_one(
         return Err("Cancelled".into());
     }
     let probe = probe_file(source)?;
-    let output = output_path(
-        source,
-        Path::new(&config.output_dir),
-        &config.filename_suffix,
-    )?;
+    let output = output_path_for_config(source, config)?;
     if config.skip_existing && output.exists() {
         counts.skipped.fetch_add(1, Ordering::SeqCst);
         emit(
@@ -356,8 +436,9 @@ fn encode_one(
         );
         return Ok(());
     }
+    let extension = output.extension().and_then(|v| v.to_str()).unwrap_or("mp4");
     let temporary = output.with_file_name(format!(
-        ".{}.{}.part.mp4",
+        ".{}.{}.part.{extension}",
         output
             .file_stem()
             .and_then(|v| v.to_str())
@@ -442,6 +523,16 @@ fn encode_one(
                     let _ = fs::remove_file(&temporary);
                     format!("Could not finalize output: {e}")
                 })?;
+                if let Ok(metadata) = fs::metadata(source) {
+                    counts
+                        .source_bytes
+                        .fetch_add(metadata.len(), Ordering::SeqCst);
+                }
+                if let Ok(metadata) = fs::metadata(&output) {
+                    counts
+                        .output_bytes
+                        .fetch_add(metadata.len(), Ordering::SeqCst);
+                }
                 counts.complete.fetch_add(1, Ordering::SeqCst);
                 emit(
                     app,
@@ -516,7 +607,7 @@ pub fn run_batch(
     let next = Arc::new(AtomicUsize::new(0));
     let files = Arc::new(files);
     let mut workers = Vec::new();
-    for _ in 0..config.parallel_jobs.clamp(1, 8) {
+    for _ in 0..effective_parallel_jobs(&config) {
         let (app, id, config, cancel, counts, next, files) = (
             app.clone(),
             id.clone(),
@@ -599,6 +690,8 @@ mod tests {
             source_dir: "/source".into(),
             output_dir: "/output".into(),
             filename_suffix: "_proxy".into(),
+            codec: "hevc-main10".into(),
+            prores_profile: "proxy".into(),
             squeeze: 1.5,
             output_height: 1080,
             bitrate_mbps: 6.0,
@@ -649,5 +742,59 @@ mod tests {
             "Guessed Channel Layout for Input Stream #0.1 : mono"
         ));
         assert!(!harmless_audio_warning("Error while opening encoder"));
+    }
+
+    #[test]
+    fn prores_proxy_uses_ten_bit_mov_output() {
+        let mut config = config();
+        config.codec = "prores-proxy".into();
+        let probe = ProbeInfo {
+            width: 6960,
+            height: 4640,
+            duration_seconds: 10.0,
+            timecode: None,
+        };
+        let args = ffmpeg_args(
+            Path::new("clip.mp4"),
+            Path::new("clip.part.mov"),
+            &probe,
+            &config,
+        )
+        .join(" ");
+        assert!(args.contains("-c:v prores_ks -profile:v 0 -pix_fmt yuv422p10le -vendor apl0"));
+        assert_eq!(
+            output_path_for_config(Path::new("clip.mp4"), &config).unwrap(),
+            PathBuf::from("/output/clip_proxy.mov")
+        );
+    }
+
+    #[test]
+    fn prores_lt_selects_profile_one() {
+        let mut config = config();
+        config.codec = "prores-proxy".into();
+        config.prores_profile = "lt".into();
+        let probe = ProbeInfo {
+            width: 1920,
+            height: 1080,
+            duration_seconds: 1.0,
+            timecode: None,
+        };
+        let args = ffmpeg_args(
+            Path::new("clip.mp4"),
+            Path::new("clip.part.mov"),
+            &probe,
+            &config,
+        )
+        .join(" ");
+        assert!(args.contains("-c:v prores_ks -profile:v 1"));
+    }
+
+    #[test]
+    fn four_k_prores_is_limited_to_one_worker() {
+        let mut config = config();
+        config.codec = "prores-proxy".into();
+        config.output_height = 2160;
+        config.parallel_jobs = 8;
+        assert_eq!(effective_parallel_jobs(&config), 1);
     }
 }

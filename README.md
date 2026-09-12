@@ -4,21 +4,24 @@ A small macOS desktop utility for making lightweight, Resolve-linkable, de-squee
 
 ## What v1 does
 
-- Picks source and output folders (default: `Source/Proxy`)
+- Picks source and output folders (default: `Source/Proxy`) and lets you rename the proxy folder
 - Accepts a source folder—or any video inside it—by drag and drop
-- Supports 1.33×, 1.5×, 1.6×, 1.8×, 2×, or a custom anamorphic squeeze
-- Outputs at 720, 1080, or a custom height
+- Supports no squeeze (1:1), 1.33×, 1.5×, 1.6×, 1.8×, 2×, or a custom anamorphic squeeze
+- Outputs at 720p, 1080p (default), 2160p, or a custom height
 - Derives width as `source raster aspect ratio × squeeze × target height`, rounded to an even pixel count
-- Encodes H.265 Main10 through Apple VideoToolbox with an `hvc1` tag
-- Uses 6 Mbps video and AAC 160 kbps audio by default
+- Defaults to H.265 Main10 through Apple VideoToolbox with an `hvc1` tag
+- Offers H.265 8-bit, H.264 8-bit, and 10-bit 4:2:2 ProRes Proxy/LT/422/HQ in a tucked-away advanced panel
+- Uses 6 Mbps HEVC at 1080p by default and scales recommendations with pixel count (3 Mbps at 720p, 24 Mbps at 2160p); H.264 uses 4/8/32 Mbps
 - Preserves source timecode when FFprobe exposes it
 - Runs two encodes in parallel by default (configurable from 1–8)
+- Limits ProRes to two parallel jobs, and 2160p ProRes to one, to avoid excessive memory pressure
 - Skips existing proxies, writes hidden temporary files, and only renames after success
 - Cancels active work and removes partial outputs
-- Shows per-clip progress, overall progress, concise diagnostics, and a batch summary
+- Shows per-clip progress, monotonic overall progress, concise diagnostics, and a persistent completion summary with elapsed time and source-to-proxy size reduction
 - Handles Canon-style MP4 edit lists using `-ignore_editlist 1`
 - Trims negative-timestamp edit-list preroll so proxies open on the first real picture rather than a generated black frame
 - Offers one-click FFmpeg installation through Homebrew when the tools are missing
+- Saves and instantly reapplies named local presets without storing source or output paths
 
 The established Canon C50-style example is covered by frontend and Rust tests:
 
@@ -75,7 +78,7 @@ Tauri writes the `.app` and `.dmg` to `src-tauri/target/release/bundle/`. Local 
 
 1. Open DeProxy and confirm the green **FFmpeg ready** indicator.
 2. Choose a folder containing the camera originals.
-3. Keep the automatically selected `Proxy` output folder or choose another destination.
+3. Keep the automatically selected `Proxy` output folder, rename it, or choose another destination.
 4. For 1.5× C50 footage, choose **1.5×**, **1080p**, **6 Mbps**, and **2 jobs**.
 5. Leave timecode, AAC audio, and skip-existing enabled, then select **Generate proxies**.
 6. Import or relink the resulting `_proxy.mp4` clips in Resolve using their matching names and timecode.
@@ -95,7 +98,8 @@ The backend passes paths as process arguments rather than building a shell comma
 ## Limitations
 
 - v1 scans only the selected folder, not nested folders, and accepts MP4, MOV, MXF, and M4V files.
-- HEVC Main10 VideoToolbox is fixed; ProRes and software fallbacks are future work.
+- H.265 Main10 remains the recommended default. H.265 8-bit and H.264 use VideoToolbox; the ProRes profiles use FFmpeg's CPU-based `prores_ks` encoder and create larger `.mov` files.
+- VideoToolbox failures are reported per clip; DeProxy does not silently switch to a slower software encoder.
 - The bitrate control uses average bitrate targeting. VideoToolbox output can vary slightly by source.
 - Timecode is preserved when present in the selected video stream or format metadata. Unusual cameras that expose timecode only through a separate proprietary/data stream may need a camera-specific fallback in a later release.
 - Color-space interpretation is inherited through source metadata; v1 does not provide LUT or color-management controls.

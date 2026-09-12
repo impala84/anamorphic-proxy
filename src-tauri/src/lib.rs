@@ -111,6 +111,20 @@ fn start_batch(
     if config.squeeze <= 0.0 || config.output_height == 0 || config.bitrate_mbps <= 0.0 {
         return Err("Encoding settings must be greater than zero".into());
     }
+    if !matches!(
+        config.codec.as_str(),
+        "hevc-main10" | "hevc" | "h264" | "prores-proxy"
+    ) {
+        return Err("Choose a supported encoder".into());
+    }
+    if config.codec == "prores-proxy"
+        && !matches!(
+            config.prores_profile.as_str(),
+            "proxy" | "lt" | "standard" | "hq"
+        )
+    {
+        return Err("Choose a supported ProRes quality".into());
+    }
     let (ffmpeg, _) = available("ffmpeg");
     let (ffprobe, _) = available("ffprobe");
     if !ffmpeg || !ffprobe {
