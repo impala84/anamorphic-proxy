@@ -49,9 +49,19 @@ export function latestFileEvents(events: BatchProgress[]) {
 
 export function overallProgress(latest: BatchProgress | undefined, files: BatchProgress[]) {
   if (!latest?.totalFiles) return 0;
-  const finished = latest.kind === "batch-complete" && latest.completedFiles + latest.skippedFiles + latest.failedFiles === latest.totalFiles;
+  const finishedFiles = latest.completedFiles + latest.skippedFiles + latest.failedFiles;
+  const finished = latest.kind === "batch-complete" && finishedFiles === latest.totalFiles;
   if (finished) return 100;
-  return Math.round(files.reduce((sum, event) => ["completed", "failed", "skipped"].includes(event.kind) ? sum + 100 : sum + event.fileProgress, 0) / latest.totalFiles);
+
+  // The UI intentionally retains only a bounded number of events. On long
+  // encodes, older per-file completion events can therefore be discarded.
+  // Use the backend's cumulative counters for terminal files and the retained
+  // events only for files that are actively encoding.
+  const activeProgress = files.reduce((sum, event) => {
+    return ["started", "progress"].includes(event.kind) ? sum + event.fileProgress : sum;
+  }, 0);
+  const percent = (finishedFiles * 100 + activeProgress) / latest.totalFiles;
+  return Math.round(Math.max(0, Math.min(100, percent)));
 }
 
 export function basename(path: string) {

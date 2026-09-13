@@ -2,6 +2,18 @@
 
 A small macOS desktop utility for making lightweight, Resolve-linkable, de-squeezed editing proxies with Apple silicon's hardware HEVC encoder. It has a React interface, a minimal Tauri/Rust backend, and runs FFmpeg entirely on your Mac—no uploads, accounts, or cloud processing.
 
+## Why DeProxy exists
+
+High-resolution anamorphic camera originals are beautiful, but they are unnecessarily heavy for editing. Generic proxy tools often preserve the squeezed raster, lose or shift timecode, expose a wall of FFmpeg settings, or create a black first frame from camera edit-list preroll. That makes an otherwise routine proxy job surprisingly fragile—especially when the results must relink cleanly in DaVinci Resolve.
+
+DeProxy turns the known-good FFmpeg workflow into one focused utility. Pick the footage, choose its squeeze and editing resolution, and let the Mac's local hardware do the work. The resulting files are de-squeezed, square-pixel, compact, correctly tagged for QuickTime, and designed to retain the source naming and timecode needed for reliable relinking. Nothing is uploaded, and advanced codec choices remain available without overwhelming the default workflow.
+
+## What's new in 0.3.1
+
+- Correct overall progress for large or long-running batches. Completed, skipped, and failed counts now come from the backend's authoritative cumulative counters, while only active encodes contribute fractional progress.
+- Prevents old completion events falling out of the bounded on-screen event history from making the progress bar appear to move backwards or report implausibly low percentages.
+- Adds regression coverage for a 100-file batch with 67 completed files and multiple active encodes.
+
 ## What v1 does
 
 - Picks source and output folders (default: `Source/Proxy`) and lets you rename the proxy folder

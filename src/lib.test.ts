@@ -63,4 +63,37 @@ describe("batch progress", () => {
   it("pins a completed batch at 100 percent", () => {
     expect(overallProgress(event("batch-complete", 100), [event("progress", 73)])).toBe(100);
   });
+
+  it("uses cumulative counts when old completion events have been discarded", () => {
+    const latest: BatchProgress = {
+      ...event("progress", 56),
+      file: "/clip-68.mp4",
+      fileIndex: 68,
+      totalFiles: 100,
+      completedFiles: 67,
+    };
+    const active = [
+      { ...latest, file: "/clip-68.mp4", fileProgress: 97 },
+      { ...latest, file: "/clip-69.mp4", fileProgress: 56 },
+    ];
+
+    expect(overallProgress(latest, active)).toBe(69);
+  });
+
+  it("does not double-count retained terminal events", () => {
+    const latest: BatchProgress = {
+      ...event("progress", 50),
+      file: "/clip-3.mp4",
+      fileIndex: 3,
+      totalFiles: 4,
+      completedFiles: 2,
+    };
+    const files = [
+      { ...latest, file: "/clip-1.mp4", kind: "completed" as const, fileProgress: 100 },
+      { ...latest, file: "/clip-2.mp4", kind: "completed" as const, fileProgress: 100 },
+      { ...latest, file: "/clip-3.mp4", fileProgress: 50 },
+    ];
+
+    expect(overallProgress(latest, files)).toBe(63);
+  });
 });
