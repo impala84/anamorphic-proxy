@@ -28,7 +28,7 @@
       <section class="hero">
         <div class="hero-copy reveal">
           <p class="eyebrow"><span></span> Built for Apple silicon</p>
-          <h1>Anamorphic proxies.<br /><em>De-squeezed and ready to cut.</em></h1>
+          <h1>Anamorphic proxies.<br /><em>De‑squeezed and ready to cut.</em></h1>
           <p class="hero-intro">DeProxy turns heavy camera originals into lightweight, Resolve-linkable editing proxies using your Mac’s hardware encoder. No uploads. No accounts. No guesswork.</p>
           <div class="hero-actions">
             <a class="button primary" href="https://github.com/impala84/anamorphic-proxy/releases/download/v0.3.1/DeProxy-0.3.1-Apple-Silicon.dmg">Download for Mac <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0 4-4m-4 4L6 9M4 16h12" /></svg></a>
@@ -87,6 +87,15 @@
         <div class="feature-line reveal" aria-label="Core features">
           <span>Hardware HEVC</span><span>Preserved timecode</span><span>Batch processing</span><span>Local presets</span><span>Nothing uploaded</span>
         </div>
+        <aside class="first-launch reveal">
+          <div class="terminal-icon" aria-hidden="true"><span></span><span></span></div>
+          <div>
+            <span class="spec-kicker">First launch</span>
+            <h3>Install FFmpeg once.</h3>
+            <p>DeProxy checks for FFmpeg when it opens. If it isn’t installed, click <strong>Install FFmpeg</strong> and DeProxy will install it through Homebrew.</p>
+          </div>
+          <code>brew install ffmpeg</code>
+        </aside>
       </section>
 
       <section class="proxies section" id="proxies">
@@ -155,7 +164,7 @@
           <a class="button primary large" href="https://github.com/impala84/anamorphic-proxy/releases/download/v0.3.1/DeProxy-0.3.1-Apple-Silicon.dmg">Download for Mac <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0 4-4m-4 4L6 9M4 16h12" /></svg></a>
           <a class="button ghost" href="https://github.com/impala84/anamorphic-proxy">View on GitHub</a>
         </div>
-        <small>Requires macOS 12 or newer, Apple silicon and FFmpeg. This build is not Apple-notarised, so Control-click → Open may be required the first time.</small>
+        <small>Requires macOS 12 or newer and Apple silicon. FFmpeg can be installed from inside DeProxy. This build is not Apple-notarised, so Control-click → Open may be required the first time.</small>
       </section>
     </main>
 
