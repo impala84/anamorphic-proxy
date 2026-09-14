@@ -20,7 +20,7 @@
         <a href="#proxies">Using proxies</a>
         <a href="#under-the-hood">Under the hood</a>
       </nav>
-      <a class="nav-download" href="https://github.com/impala84/anamorphic-proxy/releases/download/v0.3.1/DeProxy-0.3.1-Apple-Silicon.dmg">Download <span>v0.3.1</span></a>
+      <a class="nav-download" href="https://github.com/impala84/anamorphic-proxy/releases/download/v0.3.1/DeProxy-0.3.1-Apple-Silicon.dmg">Download <span>v0.3.1</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0 4-4m-4 4L6 9M4 16h12" /></svg></a>
       <button class="menu-button" type="button" aria-expanded="false" aria-label="Open menu" data-menu-button><i></i><i></i></button>
     </header>
 
@@ -150,12 +150,10 @@
         <div class="section-label reveal"><span>04</span></div>
         <div class="section-heading reveal"><h2>Under the hood</h2><p>Hardware-accelerated encoding, practical defaults and the metadata your editor needs.</p></div>
         <div class="spec-grid">
-          <article class="spec feature-spec reveal"><span class="spec-kicker">Apple hardware</span><h3>VideoToolbox acceleration</h3><p>DeProxy uses Apple’s native hardware encoder to create H.265 Main10 proxies with an <code>hvc1</code> QuickTime tag. Clips can process in parallel, with live progress for every file.</p><div class="codec-row"><span>Source</span><i></i><b>HEVC 10-bit</b></div></article>
           <article class="spec reveal"><span class="spec-kicker">Anamorphic</span><h3>Square-pixel output</h3><p>Width is calculated from source aspect ratio, squeeze and target height, then rounded to a valid even dimension.</p><code class="formula">(6960 ÷ 4640) × 1.5 × 1080 = 2430</code></article>
           <article class="spec reveal"><span class="spec-kicker">Media integrity</span><h3>Timecode kept intact</h3><p>Source timecode is preserved whenever FFprobe exposes it, helping your editor match proxies back to camera originals.</p><div class="timecode">01:12:48:17</div></article>
-          <article class="spec reveal"><span class="spec-kicker">Safe batches</span><h3>Built to finish cleanly</h3><p>Temporary files remain hidden until complete. Cancelling removes partial output, while existing proxies can be skipped.</p><div class="safe-row"><i></i><span>Atomic output</span><i></i><span>Clean cancellation</span></div></article>
           <article class="spec savings-spec reveal"><span class="spec-kicker">Storage</span><h3><strong>Up to 99%</strong> less space</h3><p>At the 6 Mbps 1080p default, proxies can be around 99% smaller than high-bitrate 7K Canon Open Gate originals. Exact savings vary with the camera codec, recording mode and proxy settings.</p><div class="saving-bar"><i></i><span>7K original</span><b>1080p proxy</b></div></article>
-          <article class="spec reveal"><span class="spec-kicker">Processing speed</span><h3>Your Mac does the heavy lifting</h3><p>VideoToolbox uses the dedicated media hardware in Apple silicon, while parallel jobs keep batches moving. Actual processing speed depends on the source codec, output settings and Mac model.</p><div class="speed-lines"><i></i><i></i><i></i><i></i></div></article>
+          <article class="spec reveal"><span class="spec-kicker">Processing speed</span><h3>Your Mac does the heavy lifting</h3><p>Dedicated media hardware handles the encoding, while parallel jobs keep batches moving. Actual processing speed depends on the source codec, output settings and Mac model.</p><div class="speed-lines"><i></i><i></i><i></i><i></i></div></article>
           <article class="spec wide-spec reveal"><span class="spec-kicker">Your machine. Your footage.</span><h3>Everything stays local.</h3><p>FFmpeg and FFprobe run directly on your Mac. There are no uploads, accounts, tracking pixels or cloud processing.</p><div class="local-path"><span>Camera originals</span><i>→</i><strong>Your Mac</strong><i>→</i><span>Proxy folder</span></div></article>
         </div>
       </section>
