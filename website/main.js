@@ -2,7 +2,7 @@ const header = document.querySelector('[data-header]');
 const menuButton = document.querySelector('[data-menu-button]');
 
 window.addEventListener('scroll', () => {
-  header.classList.toggle('scrolled', window.scrollY > 24);
+  header.classList.toggle('scrolled', window.scrollY > 4);
 }, { passive: true });
 
 menuButton.addEventListener('click', () => {
