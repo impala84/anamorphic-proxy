@@ -171,6 +171,9 @@ h1 em, h2 em { color: var(--acid); font-style: normal; }
 .list-clips i:nth-child(-n+2) { background: #36402f; color: #e6ebdf; }
 .guide-note { margin: 34px 0 0; padding: 14px 17px; color: #8c9585; background: #171a15; border: 1px solid #2b3027; border-radius: 7px; font-size: .72rem; }
 .guide-note strong { color: var(--acid); }
+.guide-note a { margin-left: 8px; color: #c7cec1; border-bottom: 1px solid #586152; }
+.finalcut-shot { background: linear-gradient(145deg, #252924, #171a16); }
+.finalcut-shot .editor-chrome { background: #2b2e29; }
 
 .under { max-width: none; background: #151813; }
 .under > * { max-width: 1228px; margin-left: auto; margin-right: auto; }
