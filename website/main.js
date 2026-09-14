@@ -39,18 +39,3 @@ document.querySelectorAll('[data-tabs]').forEach((tabs) => {
     });
   }));
 });
-
-const tilt = document.querySelector('[data-tilt]');
-if (tilt && window.matchMedia('(pointer: fine)').matches && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-  tilt.addEventListener('pointermove', (event) => {
-    const rect = tilt.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width - 0.5;
-    const y = (event.clientY - rect.top) / rect.height - 0.5;
-    tilt.style.setProperty('--rx', `${-y * 2.5}deg`);
-    tilt.style.setProperty('--ry', `${x * 3.5}deg`);
-  });
-  tilt.addEventListener('pointerleave', () => {
-    tilt.style.setProperty('--rx', '0deg');
-    tilt.style.setProperty('--ry', '0deg');
-  });
-}
