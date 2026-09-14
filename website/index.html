@@ -4,10 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#10120f" />
-    <meta name="description" content="DeProxy makes lightweight, de-squeezed editing proxies on your Mac using Apple silicon hardware acceleration." />
+    <meta name="description" content="DeProxy creates lightweight, de-squeezed anamorphic editing proxies for DaVinci Resolve, Premiere Pro and Final Cut Pro using Apple silicon hardware acceleration." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://deproxy.dallabs.co.uk/" />
     <link rel="icon" href="/deproxy-logo.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/styles.css" />
-    <title>DeProxy — Fast anamorphic proxies for Mac</title>
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DeProxy" />
+    <meta property="og:title" content="DeProxy | Anamorphic Proxy Generator for Mac" />
+    <meta property="og:description" content="Create lightweight, de-squeezed anamorphic proxies for DaVinci Resolve, Premiere Pro and Final Cut Pro." />
+    <meta property="og:url" content="https://deproxy.dallabs.co.uk/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="DeProxy | Anamorphic Proxy Generator for Mac" />
+    <meta name="twitter:description" content="Create lightweight, de-squeezed anamorphic proxies for DaVinci Resolve, Premiere Pro and Final Cut Pro." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "DeProxy",
+        "description": "A free Mac utility for creating lightweight, de-squeezed anamorphic editing proxies.",
+        "url": "https://deproxy.dallabs.co.uk/",
+        "downloadUrl": "https://github.com/impala84/anamorphic-proxy/releases/download/v0.3.1/DeProxy-0.3.1-Apple-Silicon.dmg",
+        "softwareVersion": "0.3.1",
+        "operatingSystem": "macOS 12 or newer on Apple silicon",
+        "applicationCategory": "MultimediaApplication",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "GBP"
+        }
+      }
+    </script>
+    <title>DeProxy | Anamorphic Proxy Generator for Mac</title>
   </head>
   <body>
     <header class="site-header" data-header>
@@ -110,6 +139,7 @@
           <div class="tab-list" role="tablist" aria-label="Editing software">
             <button role="tab" aria-selected="true" aria-controls="resolve-panel" id="resolve-tab" data-tab="resolve">DaVinci Resolve</button>
             <button role="tab" aria-selected="false" aria-controls="premiere-panel" id="premiere-tab" data-tab="premiere">Adobe Premiere Pro</button>
+            <button role="tab" aria-selected="false" aria-controls="final-cut-panel" id="final-cut-tab" data-tab="final-cut">Final Cut Pro</button>
           </div>
           <div class="tab-panel active" id="resolve-panel" role="tabpanel" aria-labelledby="resolve-tab" data-panel="resolve">
             <div class="editor-guide">
@@ -142,6 +172,22 @@
               </div>
             </div>
             <p class="guide-note"><strong>Tip:</strong> Add Toggle Proxies to the Program Monitor button bar if it is not already visible.</p>
+          </div>
+          <div class="tab-panel" id="final-cut-panel" role="tabpanel" aria-labelledby="final-cut-tab" data-panel="final-cut" hidden>
+            <div class="editor-guide">
+              <ol>
+                <li><span>01</span><p><strong>Select the original clips</strong>In the browser or timeline, select the clips you want to connect. You can also select an event or library.</p></li>
+                <li><span>02</span><p><strong>Choose Proxy Media</strong>Go to <b>File → Relink Files → Proxy Media</b>.</p></li>
+                <li><span>03</span><p><strong>Locate your Proxy folder</strong>Click <b>Locate All</b>, choose the matching DeProxy files, then click <b>Relink Files</b>.</p></li>
+              </ol>
+              <div class="editor-shot finalcut-shot" role="img" aria-label="Illustration of relinking proxy media in Final Cut Pro">
+                <div class="editor-chrome"><span></span><b>Browser</b><small>•••</small></div>
+                <div class="list-clips"><i>A001_C001.MP4</i><i>A001_C002.MP4</i><i>A001_C003.MP4</i></div>
+                <div class="context-menu"><span>Import ›</span><span>Transcode Media…</span><strong>Relink Files ›</strong><span class="sub-choice">Proxy Media…</span><span>Reveal in Finder</span></div>
+                <div class="shot-note"><span>2</span>Choose Relink Files, then Proxy Media</div>
+              </div>
+            </div>
+            <p class="guide-note"><strong>Tip:</strong> In the viewer’s View menu, choose Proxy Preferred or Proxy Only. Switch back to Optimized/Original before exporting. <a href="https://support.apple.com/guide/final-cut-pro/relink-clips-to-media-files-ver26f5c8c9/mac" target="_blank" rel="noreferrer">Apple’s relinking guide</a></p>
           </div>
         </div>
       </section>
