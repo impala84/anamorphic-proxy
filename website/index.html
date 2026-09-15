@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10120f" />
+    <meta name="description" content="Simplify your anamorphic workflow with DeProxy. Fast, de-squeezed anamorphic editing proxies for DaVinci Resolve, Premiere Pro and Final Cut Pro." />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://deproxy.dallabs.co.uk/" />
+    <link rel="icon" href="/deproxy-logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DeProxy" />
+    <meta property="og:title" content="DeProxy | Anamorphic Proxy Generator for Mac" />
+    <meta property="og:description" content="Simplify your anamorphic workflow with DeProxy. Fast, de-squeezed anamorphic editing proxies for DaVinci Resolve, Premiere Pro and Final Cut Pro." />
+    <meta property="og:url" content="https://deproxy.dallabs.co.uk/" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="DeProxy | Anamorphic Proxy Generator for Mac" />
+    <meta name="twitter:description" content="Simplify your anamorphic workflow with DeProxy. Fast, de-squeezed anamorphic editing proxies for DaVinci Resolve, Premiere Pro and Final Cut Pro." />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "DeProxy",
+        "description": "Simplify your anamorphic workflow with DeProxy. Fast, de-squeezed anamorphic editing proxies for DaVinci Resolve, Premiere Pro and Final Cut Pro.",
+        "url": "https://deproxy.dallabs.co.uk/",
+        "downloadUrl": "https://github.com/impala84/anamorphic-proxy/releases/download/v0.3.1/DeProxy-0.3.1-Apple-Silicon.dmg",
+        "softwareVersion": "0.3.1",
+        "operatingSystem": "macOS 12 or newer on Apple silicon",
+        "applicationCategory": "MultimediaApplication",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "GBP"
+        }
+      }
+    </script>
+    <title>DeProxy | Anamorphic Proxy Generator for Mac</title>
+  </head>
+  <body>
+    <header class="site-header" data-header>
+      <a class="brand" href="#top" aria-label="DeProxy home">
+        <img src="/deproxy-mark.svg" alt="" />
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#why">Why</a>
+        <a href="#how">How it works</a>
+        <a href="#proxies">Using proxies</a>
+        <a href="#under-the-hood">Under the hood</a>
+      </nav>
+      <a class="nav-download" href="https://github.com/impala84/anamorphic-proxy/releases/download/v0.3.1/DeProxy-0.3.1-Apple-Silicon.dmg">Download <span>v0.3.1</span><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0 4-4m-4 4L6 9M4 16h12" /></svg></a>
+      <button class="menu-button" type="button" aria-expanded="false" aria-label="Open menu" data-menu-button><i></i><i></i></button>
+    </header>
+
+    <main id="top">
+      <section class="hero">
+        <div class="hero-copy reveal">
+          <h1>Anamorphic proxies:<br /><em>De‑squeezed and ready to work with.</em></h1>
+          <p class="hero-intro">Most proxy generators cannot output de-squeezed footage. DeProxy bakes the selected de-squeeze ratio into each proxy, making editing in DaVinci Resolve or Premiere Pro easy and fast. Apple’s VideoToolbox hardware acceleration generates efficient HEVC proxies while taking full advantage of Apple silicon.</p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/impala84/anamorphic-proxy/releases/download/v0.3.1/DeProxy-0.3.1-Apple-Silicon.dmg">Download for Mac <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0 4-4m-4 4L6 9M4 16h12" /></svg></a>
+            <a class="text-link" href="#how">See how it works <span>↓</span></a>
+          </div>
+          <p class="requirement">Free and open source · macOS 12+ · Apple silicon</p>
+        </div>
+
+        <div class="hero-visual reveal">
+          <div class="glow"></div>
+          <div class="app-window" role="img" aria-label="DeProxy application showing proxy settings">
+            <div class="window-bar"><span></span><span></span><span></span><b>DeProxy</b><small>FFmpeg ready</small></div>
+            <div class="app-top"><img src="/deproxy-logo.svg" alt="" /><p>Hardware-accelerated anamorphic proxies</p></div>
+            <div class="folder-row">
+              <div><small>Source footage</small><strong>A001_Camera</strong><span>/Volumes/SHOOT/A001</span></div>
+              <div><small>Proxy destination</small><strong>Proxy</strong><span>/Volumes/SHOOT/A001/Proxy</span></div>
+            </div>
+            <div class="settings-panel">
+              <div class="panel-heading"><strong>Proxy settings</strong><span>2430 × 1080 output</span></div>
+              <div class="mock-fields">
+                <label>Squeeze<strong>1.5×</strong></label><label>Height<strong>1080p</strong></label><label>Bitrate<strong>6 Mbps</strong></label><label>Jobs<strong>2</strong></label>
+              </div>
+              <div class="mock-toggles"><span><i></i>Preserve timecode</span><span><i></i>Include audio</span><span><i></i>Skip existing</span></div>
+            </div>
+            <div class="mock-footer"><span>Default settings are ready</span><button>Generate proxies <b>▶</b></button></div>
+          </div>
+          <a class="speed-badge" href="https://developer.apple.com/documentation/videotoolbox" target="_blank" rel="noreferrer" aria-label="Learn about Apple VideoToolbox">
+            <span class="apple-mark"></span>
+            <p><small>Powered by</small><strong>Apple VideoToolbox</strong>Hardware accelerated</p>
+            <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 13 13 7m-5 0h5v5" /></svg>
+          </a>
+        </div>
+      </section>
+
+      <section class="reason section" id="why">
+        <div class="section-label reveal"><span>01</span></div>
+        <div class="reason-copy reveal">
+          <h2>Why I built it</h2>
+          <h3 class="supporting-line">Anamorphic proxies shouldn’t be a headache.</h3>
+          <div class="reason-grid">
+            <p>High-resolution anamorphic originals are beautiful, but unnecessarily heavy for editing. The tools I tried either kept footage squeezed, lost timecode, created a black first frame, or exposed a wall of settings.</p>
+            <p>DeProxy packages the FFmpeg workflow I could trust into one focused Mac utility. It produces compact, correctly de-squeezed proxies that retain the information needed to link back to the originals.</p>
+          </div>
+        </div>
+        <div class="problem-strip reveal">
+          <article><b>01</b><span>Squeezed footage</span><p>Corrected to a square-pixel editing image.</p></article>
+          <article><b>02</b><span>Heavy originals</span><p>Converted to compact, responsive proxy media.</p></article>
+          <article><b>03</b><span>Broken first frames</span><p>Camera edit-list preroll is removed cleanly.</p></article>
+          <article><b>04</b><span>Fragile relinking</span><p>Source names and timecode are preserved.</p></article>
+        </div>
+      </section>
+
+      <section class="how section" id="how">
+        <div class="section-label reveal"><span>02</span></div>
+        <div class="section-heading reveal"><h2>How it works</h2></div>
+        <div class="steps">
+          <article class="step reveal"><span class="step-number">1</span><div class="step-icon folder-icon"><i></i></div><h3>Choose your footage</h3><p>Select a source folder or drop any supported video onto the window. DeProxy creates a Proxy folder beside it by default.</p></article>
+          <article class="step reveal"><span class="step-number">2</span><div class="step-icon squeeze-icon"><i></i><i></i><b>1.5×</b></div><h3>Set the squeeze</h3><p>Choose 1.33×, 1.5×, 1.6×, 1.8×, 2× or enter a custom value. Then pick the editing resolution.</p></article>
+          <article class="step reveal"><span class="step-number">3</span><div class="step-icon progress-icon"><i></i><b>69%</b></div><h3>Generate proxies</h3><p>Process clips in parallel, follow progress file by file, and safely skip proxies you have already made.</p></article>
+        </div>
+        <div class="feature-line reveal" aria-label="Core features">
+          <span>Hardware HEVC</span><span>Preserved timecode</span><span>Batch processing</span><span>Local presets</span><span>Nothing uploaded</span>
+        </div>
+        <aside class="first-launch reveal">
+          <div class="terminal-icon" aria-hidden="true"><span></span><span></span></div>
+          <div>
+            <span class="spec-kicker">First launch</span>
+            <h3>Install FFmpeg once.</h3>
+            <p>DeProxy checks for FFmpeg when it opens. If it isn’t installed, click <strong>Install FFmpeg</strong> and DeProxy will install it through Homebrew.</p>
+          </div>
+          <code>brew install ffmpeg</code>
+        </aside>
+      </section>
+
+      <section class="proxies section" id="proxies">
+        <div class="section-label reveal"><span>03</span></div>
+        <div class="section-heading reveal"><h2>Using your proxies</h2><p>Attach the generated files to your originals, then switch between proxy and camera media whenever you need to.</p></div>
+
+        <div class="editor-tabs reveal" data-tabs>
+          <div class="tab-list" role="tablist" aria-label="Editing software">
+            <button role="tab" aria-selected="true" aria-controls="resolve-panel" id="resolve-tab" data-tab="resolve">DaVinci Resolve</button>
+            <button role="tab" aria-selected="false" aria-controls="premiere-panel" id="premiere-tab" data-tab="premiere">Adobe Premiere Pro</button>
+            <button role="tab" aria-selected="false" aria-controls="final-cut-panel" id="final-cut-tab" data-tab="final-cut">Final Cut Pro</button>
+          </div>
+          <div class="tab-panel active" id="resolve-panel" role="tabpanel" aria-labelledby="resolve-tab" data-panel="resolve">
+            <div class="editor-guide">
+              <ol>
+                <li><span>01</span><p><strong>Select the original clips</strong>In the Media Pool, select the camera originals you want to connect.</p></li>
+                <li><span>02</span><p><strong>Choose Link Proxy Media</strong>Right-click the selection and choose <b>Link Proxy Media</b>.</p></li>
+                <li><span>03</span><p><strong>Open your Proxy folder</strong>Select the matching files DeProxy created. Resolve links them to the originals.</p></li>
+              </ol>
+              <div class="editor-shot resolve-shot" role="img" aria-label="Illustration of Link Proxy Media in DaVinci Resolve">
+                <div class="editor-chrome"><span></span><b>Media Pool</b><small>•••</small></div>
+                <div class="clip-grid"><i>A001_C001</i><i>A001_C002</i><i>A001_C003</i></div>
+                <div class="context-menu"><span>Clip Attributes…</span><span>Replace Selected Clip…</span><strong>Link Proxy Media</strong><span>Unlink Proxy Media</span><span>Reveal in Finder</span></div>
+                <div class="shot-note"><span>2</span>Right-click your selected originals</div>
+              </div>
+            </div>
+            <p class="guide-note"><strong>Tip:</strong> In Resolve, use Playback → Proxy Handling to prefer proxies or camera originals.</p>
+          </div>
+          <div class="tab-panel" id="premiere-panel" role="tabpanel" aria-labelledby="premiere-tab" data-panel="premiere" hidden>
+            <div class="editor-guide">
+              <ol>
+                <li><span>01</span><p><strong>Select the original clips</strong>In the Project panel, select the camera originals you want to connect.</p></li>
+                <li><span>02</span><p><strong>Choose Attach Proxies</strong>Right-click and choose <b>Proxy → Attach Proxies</b>.</p></li>
+                <li><span>03</span><p><strong>Find your Proxy folder</strong>Choose the matching DeProxy files, then use the Toggle Proxies button while editing.</p></li>
+              </ol>
+              <div class="editor-shot premiere-shot" role="img" aria-label="Illustration of Attach Proxies in Adobe Premiere Pro">
+                <div class="editor-chrome"><span></span><b>Project</b><small>•••</small></div>
+                <div class="list-clips"><i>A001_C001.MP4</i><i>A001_C002.MP4</i><i>A001_C003.MP4</i></div>
+                <div class="context-menu"><span>New Sequence From Clip</span><span>Modify ›</span><strong>Proxy ›</strong><span class="sub-choice">Attach Proxies…</span><span>Reveal in Finder</span></div>
+                <div class="shot-note"><span>2</span>Choose Proxy, then Attach Proxies</div>
+              </div>
+            </div>
+            <p class="guide-note"><strong>Tip:</strong> Add Toggle Proxies to the Program Monitor button bar if it is not already visible.</p>
+          </div>
+          <div class="tab-panel" id="final-cut-panel" role="tabpanel" aria-labelledby="final-cut-tab" data-panel="final-cut" hidden>
+            <div class="editor-guide">
+              <ol>
+                <li><span>01</span><p><strong>Select the original clips</strong>In the browser or timeline, select the clips you want to connect. You can also select an event or library.</p></li>
+                <li><span>02</span><p><strong>Choose Proxy Media</strong>Go to <b>File → Relink Files → Proxy Media</b>.</p></li>
+                <li><span>03</span><p><strong>Locate your Proxy folder</strong>Click <b>Locate All</b>, choose the matching DeProxy files, then click <b>Relink Files</b>.</p></li>
+              </ol>
+              <div class="editor-shot finalcut-shot" role="img" aria-label="Illustration of relinking proxy media in Final Cut Pro">
+                <div class="editor-chrome"><span></span><b>Browser</b><small>•••</small></div>
+                <div class="list-clips"><i>A001_C001.MP4</i><i>A001_C002.MP4</i><i>A001_C003.MP4</i></div>
+                <div class="context-menu"><span>Import ›</span><span>Transcode Media…</span><strong>Relink Files ›</strong><span class="sub-choice">Proxy Media…</span><span>Reveal in Finder</span></div>
+                <div class="shot-note"><span>2</span>Choose Relink Files, then Proxy Media</div>
+              </div>
+            </div>
+            <p class="guide-note"><strong>Tip:</strong> In the viewer’s View menu, choose Proxy Preferred or Proxy Only. Switch back to Optimized/Original before exporting. <a href="https://support.apple.com/guide/final-cut-pro/relink-clips-to-media-files-ver26f5c8c9/mac" target="_blank" rel="noreferrer">Apple’s relinking guide</a></p>
+          </div>
+        </div>
+      </section>
+
+      <section class="under section" id="under-the-hood">
+        <div class="section-label reveal"><span>04</span></div>
+        <div class="section-heading reveal"><h2>Under the hood</h2><p>Hardware-accelerated encoding, practical defaults and the metadata your editor needs.</p></div>
+        <div class="spec-grid">
+          <article class="spec reveal"><span class="spec-kicker">Anamorphic</span><h3>Square-pixel output</h3><p>Width is calculated from source aspect ratio, squeeze and target height, then rounded to a valid even dimension.</p><code class="formula">(6960 ÷ 4640) × 1.5 × 1080 = 2430</code></article>
+          <article class="spec reveal"><span class="spec-kicker">Media integrity</span><h3>Timecode kept intact</h3><p>Source timecode is preserved whenever FFprobe exposes it, helping your editor match proxies back to camera originals.</p><div class="timecode">01:12:48:17</div></article>
+          <article class="spec savings-spec reveal"><span class="spec-kicker">Storage</span><h3><strong>Up to 99%</strong> less space</h3><p>At the 6 Mbps 1080p default, proxies can be around 99% smaller than high-bitrate 7K Canon Open Gate originals. Exact savings vary with the camera codec, recording mode and proxy settings.</p><div class="saving-bar"><i></i><span>7K original</span><b>1080p proxy</b></div></article>
+          <article class="spec reveal"><span class="spec-kicker">Processing speed</span><h3>Your Mac does the heavy lifting</h3><p>Dedicated media hardware handles the encoding, while parallel jobs keep batches moving. Actual processing speed depends on the source codec, output settings and Mac model.</p><div class="speed-lines"><i></i><i></i><i></i><i></i></div></article>
+          <article class="spec wide-spec reveal"><span class="spec-kicker">Your machine. Your footage.</span><h3>Everything stays local.</h3><p>FFmpeg and FFprobe run directly on your Mac. There are no uploads, accounts, tracking pixels or cloud processing.</p><div class="local-path"><span>Camera originals</span><i>→</i><strong>Your Mac</strong><i>→</i><span>Proxy folder</span></div></article>
+        </div>
+      </section>
+
+      <section class="download section" id="download">
+        <div class="download-glow"></div>
+        <img src="/deproxy-logo.svg" alt="" class="download-mark reveal" />
+        <p class="eyebrow reveal"><span></span> DeProxy 0.3.1</p>
+        <h2 class="reveal">Give your originals<br /><em>a lighter understudy.</em></h2>
+        <p class="reveal">Free, open source and built for Apple silicon.</p>
+        <div class="download-actions reveal">
+          <a class="button primary large" href="https://github.com/impala84/anamorphic-proxy/releases/download/v0.3.1/DeProxy-0.3.1-Apple-Silicon.dmg">Download for Mac <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0 4-4m-4 4L6 9M4 16h12" /></svg></a>
+          <a class="button ghost" href="https://github.com/impala84/anamorphic-proxy">View on GitHub</a>
+        </div>
+        <small>Requires macOS 12 or newer and Apple silicon. FFmpeg can be installed from inside DeProxy. This build is not Apple-notarised, so Control-click → Open may be required the first time.</small>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <a class="brand" href="#top"><img src="/deproxy-mark.svg" alt="" /><span>DeProxy</span></a>
+      <p>simplify your Anamorphic workflow</p>
+      <div><a href="https://github.com/impala84/anamorphic-proxy">GitHub</a><a href="https://github.com/impala84/anamorphic-proxy/blob/main/LICENSE">MIT Licence</a><span>© 2026</span></div>
+    </footer>
+    <script type="module" src="/main.js"></script>
+    <!-- Cloudflare Web Analytics -->
+    <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"d254f6bd9ec948119c3d23dceb45deb5"}'></script>
+    <!-- End Cloudflare Web Analytics -->
+  </body>
+</html>

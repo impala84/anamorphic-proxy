@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://deproxy.dallabs.co.uk/sitemap.xml
