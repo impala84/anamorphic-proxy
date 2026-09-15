@@ -252,14 +252,14 @@ h1 em, h2 em { color: var(--acid); font-style: normal; }
 
 @media (max-width: 760px) {
   html { scroll-padding-top: 70px; }
-  .site-header { height: 66px; padding: 0 20px; }
+  .site-header { display: block; height: 66px; padding: 0; }
   .site-header > .brand { top: 100%; left: 20px; transform: translateY(-50%); }
   .site-header .brand img { width: 122px; height: 84px; }
   .site-header.scrolled > .brand { top: 50%; }
   .site-header.scrolled .brand img { width: 66px; height: 44px; }
   .site-header .nav-download { display: none; }
-  .menu-button { z-index: 2; grid-column: 2; display: grid; }
-  .site-header.menu-open nav { position: fixed; z-index: 1; top: 66px; left: 0; right: 0; width: 100%; max-width: none; padding: 52px 20px 30px; display: flex; flex-direction: column; align-items: flex-start; gap: 20px; background: #10120ff5; border-bottom: 1px solid #30352c; backdrop-filter: blur(18px); }
+  .menu-button { position: absolute; z-index: 3; top: 12px; right: 20px; display: grid; }
+  .site-header.menu-open nav { position: fixed; z-index: 1; inset: 66px 0 auto; width: 100vw; padding: 52px 20px 30px; display: flex; flex-direction: column; align-items: flex-start; gap: 20px; background: #10120ff5; border-bottom: 1px solid #30352c; backdrop-filter: blur(18px); }
   .hero { padding: 145px 20px 100px; grid-template-columns: minmax(0, 1fr); gap: 90px; }
   h1 { max-width: 100%; font-size: clamp(3.15rem, 14.5vw, 3.8rem); letter-spacing: -.058em; }
   .hero-intro { font-size: 1rem; }
