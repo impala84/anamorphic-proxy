@@ -45,7 +45,7 @@ pub struct BatchConfig {
     pub bitrate_mbps: f64,
     pub parallel_jobs: usize,
     pub preserve_timecode: bool,
-    pub include_audio: bool,
+    pub audio_mode: String,
     pub skip_existing: bool,
 }
 
@@ -258,7 +258,7 @@ pub fn ffmpeg_args(
         "-map".into(),
         "0:v:0".into(),
     ];
-    if config.include_audio {
+    if config.audio_mode != "none" {
         args.extend(["-map".into(), "0:a?".into()]);
     }
     args.extend([
@@ -336,17 +336,17 @@ pub fn ffmpeg_args(
             buffer,
         ]),
     }
-    if config.include_audio {
-        args.extend([
+    match config.audio_mode.as_str() {
+        "preserve" => args.extend(["-c:a".into(), "copy".into()]),
+        "aac" => args.extend([
             "-af".into(),
             "atrim=start=0,asetpts=PTS-STARTPTS".into(),
             "-c:a".into(),
             "aac".into(),
             "-b:a".into(),
             "160k".into(),
-        ]);
-    } else {
-        args.push("-an".into());
+        ]),
+        _ => args.push("-an".into()),
     }
     if config.preserve_timecode {
         if let Some(timecode) = &probe.timecode {
@@ -697,7 +697,7 @@ mod tests {
             bitrate_mbps: 6.0,
             parallel_jobs: 2,
             preserve_timecode: true,
-            include_audio: true,
+            audio_mode: "preserve".into(),
             skip_existing: true,
         }
     }
@@ -730,10 +730,54 @@ mod tests {
         );
         assert!(joined.contains("-b:v 6000k"));
         assert!(joined.contains("-timecode 01:02:03:04"));
-        assert!(joined.contains("-c:a aac -b:a 160k"));
-        assert!(joined.contains("-af atrim=start=0,asetpts=PTS-STARTPTS"));
+        assert!(joined.contains("-map 0:a?"));
+        assert!(joined.contains("-c:a copy"));
+        assert!(!joined.contains("-af"));
         assert!(joined.contains("-avoid_negative_ts disabled"));
         assert!(joined.contains("-progress pipe:1"));
+    }
+
+    #[test]
+    fn aac_mode_reencodes_each_mapped_audio_track() {
+        let mut config = config();
+        config.audio_mode = "aac".into();
+        let probe = ProbeInfo {
+            width: 1920,
+            height: 1080,
+            duration_seconds: 1.0,
+            timecode: None,
+        };
+        let args = ffmpeg_args(
+            Path::new("clip.mp4"),
+            Path::new("clip.part.mp4"),
+            &probe,
+            &config,
+        )
+        .join(" ");
+        assert!(args.contains("-map 0:a?"));
+        assert!(args.contains("-c:a aac -b:a 160k"));
+        assert!(args.contains("-af atrim=start=0,asetpts=PTS-STARTPTS"));
+    }
+
+    #[test]
+    fn no_audio_mode_disables_audio() {
+        let mut config = config();
+        config.audio_mode = "none".into();
+        let probe = ProbeInfo {
+            width: 1920,
+            height: 1080,
+            duration_seconds: 1.0,
+            timecode: None,
+        };
+        let args = ffmpeg_args(
+            Path::new("clip.mp4"),
+            Path::new("clip.part.mp4"),
+            &probe,
+            &config,
+        )
+        .join(" ");
+        assert!(!args.contains("-map 0:a?"));
+        assert!(args.contains("-an"));
     }
 
     #[test]

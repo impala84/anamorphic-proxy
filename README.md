@@ -8,11 +8,12 @@ High-resolution anamorphic camera originals are beautiful, but they are unnecess
 
 DeProxy turns the known-good FFmpeg workflow into one focused utility. Pick the footage, choose its squeeze and editing resolution, and let the Mac's local hardware do the work. The resulting files are de-squeezed, square-pixel, compact, correctly tagged for QuickTime, and designed to retain the source naming and timecode needed for reliable relinking. Nothing is uploaded, and advanced codec choices remain available without overwhelming the default workflow.
 
-## What's new in 0.3.1
+## What's new in 0.3.2
 
-- Correct overall progress for large or long-running batches. Completed, skipped, and failed counts now come from the backend's authoritative cumulative counters, while only active encodes contribute fractional progress.
-- Prevents old completion events falling out of the bounded on-screen event history from making the progress bar appear to move backwards or report implausibly low percentages.
-- Adds regression coverage for a 100-file batch with 67 completed files and multiple active encodes.
+- Adds an optional **Preserve source audio** mode that retains every source stream's codec, channel count, track order, sample rate, bit depth, and timing.
+- Avoids AAC encoder priming and skip-sample metadata that can make multi-track proxy audio conform differently inside an NLE.
+- Adds explicit **Preserve source audio**, **AAC**, and **No audio** choices under Advanced encoding.
+- Migrates existing saved presets: the old AAC toggle becomes AAC or No audio, while new presets use the selected audio mode.
 
 ## What v1 does
 
@@ -25,6 +26,7 @@ DeProxy turns the known-good FFmpeg workflow into one focused utility. Pick the 
 - Offers H.265 8-bit, H.264 8-bit, and 10-bit 4:2:2 ProRes Proxy/LT/422/HQ in a tucked-away advanced panel
 - Uses 6 Mbps HEVC at 1080p by default and scales recommendations with pixel count (3 Mbps at 720p, 24 Mbps at 2160p); H.264 uses 4/8/32 Mbps
 - Preserves source timecode when FFprobe exposes it
+- Encodes every source audio track as AAC by default; exact source-audio preservation and video-only output remain optional
 - Runs two encodes in parallel by default (configurable from 1–8)
 - Limits ProRes to two parallel jobs, and 2160p ProRes to one, to avoid excessive memory pressure
 - Skips existing proxies, writes hidden temporary files, and only renames after success
@@ -92,7 +94,7 @@ Tauri writes the `.app` and `.dmg` to `src-tauri/target/release/bundle/`. Local 
 2. Choose a folder containing the camera originals.
 3. Keep the automatically selected `Proxy` output folder, rename it, or choose another destination.
 4. For 1.5× C50 footage, choose **1.5×**, **1080p**, **6 Mbps**, and **2 jobs**.
-5. Leave timecode, AAC audio, and skip-existing enabled, then select **Generate proxies**.
+5. Leave timecode, AAC audio, and skip-existing enabled for compact proxies. Choose **Preserve source audio** under Advanced encoding when exact production-audio matching is important.
 6. Import or relink the resulting `_proxy.mp4` clips in Resolve using their matching names and timecode.
 
 ## Architecture
@@ -113,6 +115,7 @@ The backend passes paths as process arguments rather than building a shell comma
 - H.265 Main10 remains the recommended default. H.265 8-bit and H.264 use VideoToolbox; the ProRes profiles use FFmpeg's CPU-based `prores_ks` encoder and create larger `.mov` files.
 - VideoToolbox failures are reported per clip; DeProxy does not silently switch to a slower software encoder.
 - The bitrate control uses average bitrate targeting. VideoToolbox output can vary slightly by source.
+- Preserved audio uses more space than AAC. Four mono 48 kHz/24-bit PCM tracks add roughly 35 MB per minute, but match the camera originals without encoder delay.
 - Timecode is preserved when present in the selected video stream or format metadata. Unusual cameras that expose timecode only through a separate proprietary/data stream may need a camera-specific fallback in a later release.
 - Color-space interpretation is inherited through source metadata; v1 does not provide LUT or color-management controls.
 - Sleep prevention, pause/resume, recursive input folders, and signed/notarized release automation are not included yet.

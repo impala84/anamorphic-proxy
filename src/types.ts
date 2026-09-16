@@ -15,7 +15,7 @@ export type BatchConfig = {
   bitrateMbps: number;
   parallelJobs: number;
   preserveTimecode: boolean;
-  includeAudio: boolean;
+  audioMode: "preserve" | "aac" | "none";
   skipExisting: boolean;
 };
 

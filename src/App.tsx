@@ -25,7 +25,7 @@ const initialConfig: BatchConfig = {
   bitrateMbps: 6,
   parallelJobs: 2,
   preserveTimecode: true,
-  includeAudio: true,
+  audioMode: "aac",
   skipExisting: true
 };
 
@@ -199,10 +199,15 @@ function App() {
     const preset = presets.find((item) => item.name === name);
     if (!preset) return;
     const { proxyFolderName: folderName, ...settings } = preset.settings;
+    const compatibleSettings = { ...settings } as Partial<BatchConfig> & { includeAudio?: boolean };
+    if (!compatibleSettings.audioMode && "includeAudio" in compatibleSettings) {
+      compatibleSettings.audioMode = compatibleSettings.includeAudio ? "aac" : "none";
+    }
+    delete compatibleSettings.includeAudio;
     setProxyFolderName(folderName);
     setConfig((old) => ({
       ...old,
-      ...settings,
+      ...compatibleSettings,
       outputDir: old.sourceDir ? proxyPath(old.sourceDir, folderName) : old.outputDir
     }));
   }
@@ -269,14 +274,16 @@ function App() {
         <details className="advanced">
           <summary>Advanced encoding <span>{config.codec === "hevc-main10" ? "Recommended" : "Custom"}</span></summary>
           <div className="advanced-content">
-            <div className="advanced-fields"><label className="field"><span>Encoder</span><div className="select-wrap"><select value={config.codec} onChange={(e) => selectCodec(e.target.value as BatchConfig["codec"])}><option value="hevc-main10">H.265 Main10 (VideoToolbox)</option><option value="hevc">H.265 8-bit (VideoToolbox)</option><option value="h264">H.264 8-bit (VideoToolbox)</option><option value="prores-proxy">Apple ProRes 422</option></select><ChevronDown size={15} /></div></label></div>
+            <div className="advanced-fields">
+              <label className="field"><span>Encoder</span><div className="select-wrap"><select value={config.codec} onChange={(e) => selectCodec(e.target.value as BatchConfig["codec"])}><option value="hevc-main10">H.265 Main10 (VideoToolbox)</option><option value="hevc">H.265 8-bit (VideoToolbox)</option><option value="h264">H.264 8-bit (VideoToolbox)</option><option value="prores-proxy">Apple ProRes 422</option></select><ChevronDown size={15} /></div></label>
+              <label className="field"><span>Audio</span><div className="select-wrap"><select value={config.audioMode} onChange={(e) => update("audioMode", e.target.value as BatchConfig["audioMode"])}><option value="aac">AAC · 160 kbps per track</option><option value="preserve">Preserve source audio</option><option value="none">No audio</option></select><ChevronDown size={15} /></div></label>
+            </div>
             <p>{config.codec === "prores-proxy" ? `10-bit 4:2:2 editing codec. Proxy is smallest; LT, 422 and HQ progressively increase quality and size. ${config.outputHeight >= 2160 ? "4K ProRes runs one job at a time for stability." : "ProRes is limited to two parallel jobs for stability."}` : config.codec === "h264" ? "The broadest compatibility, hardware accelerated, but limited to 8-bit output." : config.codec === "hevc" ? "Smaller 8-bit files using Apple hardware acceleration." : "Recommended: compact 10-bit proxies encoded by Apple VideoToolbox."}</p>
           </div>
         </details>
         <div className="toggles">
           {([
             ["preserveTimecode", "Preserve source timecode"],
-            ["includeAudio", "AAC audio · 160 kbps"],
             ["skipExisting", "Skip existing outputs"]
           ] as const).map(([key, label]) => (
             <label key={key}><input type="checkbox" checked={config[key]} onChange={(e) => update(key, e.target.checked)} /><span className="switch" />{label}</label>
