@@ -15,6 +15,14 @@ DeProxy turns the known-good FFmpeg workflow into one focused utility. Pick the 
 - Adds explicit **Preserve source audio**, **AAC**, and **No audio** choices under Advanced encoding.
 - Migrates existing saved presets: the old AAC toggle becomes AAC or No audio, while new presets use the selected audio mode.
 
+## Desktop preferences and progress
+
+Drag anywhere in the top header to move the window (the preferences button remains clickable). The cog beside the FFmpeg status opens Preferences. Maximum CPU use defaults to 100% and is saved locally across launches, independently of encoding presets. Changes apply to the next batch.
+
+Lower limits throttle all FFmpeg workers on a shared 200ms cycle to reduce average CPU use as a fraction of total machine capacity. Brief peaks and source probing can exceed the selected average; this does not limit the hardware video encoder or other apps. The default 100% adds no pauses.
+
+During encoding, the macOS Dock icon shows the batch percentage and progress bar, updated by the native worker even when the window is minimized. Indicators clear when a batch finishes, fails, or is cancelled. On other supported desktop platforms, the native taskbar progress bar is used.
+
 ## What v1 does
 
 - Picks source and output folders (default: `Source/Proxy`) and lets you rename the proxy folder

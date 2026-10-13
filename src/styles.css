@@ -50,3 +50,12 @@ footer { display: flex; justify-content: flex-end; gap: 10px; padding-top: 4px; 
 .footer-presets { margin-right: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }.preset-select { width: 125px; }.preset-select select { height: 36px; color: #9da696; background: #1d211b; }.preset-select.select-wrap > svg { top: 11px; }.save-preset { height: 36px; padding: 0 12px; background: transparent; border: 1px solid #343a30; color: #90998a; }.save-preset:hover:not(:disabled) { border-color: #657456; color: #c5cec0; }.save-preset:disabled { opacity: .4; cursor: default; }.preset-editor { display: flex; align-items: center; gap: 6px; }.preset-editor input { width: 145px; height: 36px; }.preset-editor button { height: 32px; padding: 0 9px; font-size: 10px; }.preset-save { background: #caff55; color: #172007; }.preset-save:disabled { opacity: .35; cursor: default; }.preset-cancel { background: transparent; color: #899282; }
 .primary { background: #caff55; color: #172007; box-shadow: 0 7px 20px #a8d74421; }.primary:hover:not(:disabled) { background: #d4ff72; }.primary:disabled { opacity: .35; cursor: default; }.danger { background: #41241f; color: #f1a18a; }.secondary { background: #252a22; color: #a2aa9b; }
 @media (max-width: 720px) { main { width: calc(100% - 28px); }.settings-grid { grid-template-columns: 1fr 1fr; }.toggles { flex-wrap: wrap; }.paths { grid-template-columns: 1fr; } }
+
+header { user-select: none; margin-left: -24px; margin-right: -24px; padding: 0 24px; }
+.preferences-button { flex: 0 0 auto; display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid #32372d; border-radius: 8px; background: #1a1d18; color: #a3b195; cursor: pointer; }
+.preferences-button:hover { color: #caff55; border-color: #718044; }
+.preferences-button:focus-visible { outline: 2px solid #caff55; outline-offset: 3px; }
+.preferences { width: 380px; padding: 22px; border: 1px solid #3b4135; border-radius: 12px; background: #191c17; color: #e8ebe5; box-shadow: 0 20px 60px #0008; }
+.preferences::backdrop { background: #0008; }
+.preferences p { color: #a1a99a; font-size: 12px; line-height: 1.6; }
+.preferences input[type=range] { padding: 0; accent-color: #caff55; }

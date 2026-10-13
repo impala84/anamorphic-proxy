@@ -7,7 +7,7 @@ use std::{
     process::Command,
     sync::{atomic::AtomicBool, Arc},
 };
-use tauri::{Emitter, State};
+use tauri::{Emitter, Manager, State};
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -38,6 +38,22 @@ fn available(command: &str) -> (bool, Option<String>) {
         }
         _ => (false, None),
     }
+}
+
+fn set_encoding_progress(app: tauri::AppHandle, progress: Option<u64>) -> Result<(), String> {
+    let window = app.get_webview_window("main").ok_or("Main window unavailable")?;
+    window.set_progress_bar(tauri::window::ProgressBarState {
+        status: Some(if progress.is_some() {
+            tauri::window::ProgressBarStatus::Normal
+        } else {
+            tauri::window::ProgressBarStatus::None
+        }),
+        progress: progress.map(|value| value.min(100)),
+    }).map_err(|error| error.to_string())?;
+    #[cfg(target_os = "macos")]
+    window.set_badge_label(progress.map(|value| format!("{}%", value.min(100))))
+        .map_err(|error| error.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -125,6 +141,9 @@ fn start_batch(
     {
         return Err("Choose a supported ProRes quality".into());
     }
+    if !(10..=100).contains(&config.cpu_limit_percent) {
+        return Err("CPU limit must be between 10% and 100%".into());
+    }
     let (ffmpeg, _) = available("ffmpeg");
     let (ffprobe, _) = available("ffprobe");
     if !ffmpeg || !ffprobe {
@@ -135,6 +154,7 @@ fn start_batch(
     manager.insert(id.clone(), cancel.clone());
     let manager = manager.inner().clone();
     let task_id = id.clone();
+    let _ = set_encoding_progress(app.clone(), Some(0));
     std::thread::spawn(move || run_batch(app, manager, task_id, config, cancel));
     Ok(id)
 }
