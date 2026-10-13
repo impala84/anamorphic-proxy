@@ -108,19 +108,19 @@ function App() {
 
   useEffect(() => {
     invoke<ToolStatus>("check_tools").then(setTools).catch(() => setTools({ ffmpeg: false, ffprobe: false }));
-    const unlisten = listen<BatchProgress>("batch-progress", ({ payload }) => {
+    const unlisten = isTauri() ? listen<BatchProgress>("batch-progress", ({ payload }) => {
       setEvents((old) => [...old.slice(-499), payload]);
       if (payload.kind === "batch-complete") {
         completedBatchId.current = payload.batchId;
         setBatchId(null);
         if (startedAt.current) setElapsedSeconds((Date.now() - startedAt.current) / 1000);
       }
-    });
-    const unlistenInstall = listen<{ success: boolean; message: string }>("tool-install-status", ({ payload }) => {
+    }) : Promise.resolve(() => {});
+    const unlistenInstall = isTauri() ? listen<{ success: boolean; message: string }>("tool-install-status", ({ payload }) => {
       setInstalling(false);
       setToolMessage(payload.message);
       if (payload.success) invoke<ToolStatus>("check_tools").then(setTools);
-    });
+    }) : Promise.resolve(() => {});
     const unlistenDrop = isTauri() ? getCurrentWebviewWindow().onDragDropEvent(async (event) => {
       if (event.payload.type === "enter" || event.payload.type === "over") setDragging(true);
       if (event.payload.type === "leave") setDragging(false);

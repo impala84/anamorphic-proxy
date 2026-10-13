@@ -41,17 +41,22 @@ fn available(command: &str) -> (bool, Option<String>) {
 }
 
 fn set_encoding_progress(app: tauri::AppHandle, progress: Option<u64>) -> Result<(), String> {
-    let window = app.get_webview_window("main").ok_or("Main window unavailable")?;
-    window.set_progress_bar(tauri::window::ProgressBarState {
-        status: Some(if progress.is_some() {
-            tauri::window::ProgressBarStatus::Normal
-        } else {
-            tauri::window::ProgressBarStatus::None
-        }),
-        progress: progress.map(|value| value.min(100)),
-    }).map_err(|error| error.to_string())?;
+    let window = app
+        .get_webview_window("main")
+        .ok_or("Main window unavailable")?;
+    window
+        .set_progress_bar(tauri::window::ProgressBarState {
+            status: Some(if progress.is_some() {
+                tauri::window::ProgressBarStatus::Normal
+            } else {
+                tauri::window::ProgressBarStatus::None
+            }),
+            progress: progress.map(|value| value.min(100)),
+        })
+        .map_err(|error| error.to_string())?;
     #[cfg(target_os = "macos")]
-    window.set_badge_label(progress.map(|value| format!("{}%", value.min(100))))
+    window
+        .set_badge_label(progress.map(|value| format!("{}%", value.min(100))))
         .map_err(|error| error.to_string())?;
     Ok(())
 }

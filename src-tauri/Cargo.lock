@@ -549,6 +549,7 @@ dependencies = [
 name = "deproxy"
 version = "0.3.2"
 dependencies = [
+ "libc",
  "serde",
  "serde_json",
  "tauri",

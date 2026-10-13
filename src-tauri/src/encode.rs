@@ -51,7 +51,9 @@ pub struct BatchConfig {
     pub cpu_limit_percent: u8,
 }
 
-fn default_cpu_limit() -> u8 { 100 }
+fn default_cpu_limit() -> u8 {
+    100
+}
 
 #[derive(Debug, Clone)]
 pub struct ProbeInfo {
@@ -388,9 +390,20 @@ fn emit(
     // Update native indicators from the worker, even with a minimized webview.
     if kind == "batch-complete" {
         let _ = crate::set_encoding_progress(app.clone(), None);
-    } else if total > 0 && ["started", "progress", "completed", "failed", "skipped"].contains(&kind) {
-        let mut files = counts.file_progress.lock().expect("progress state poisoned");
-        files.insert(file.to_path_buf(), if ["completed", "failed", "skipped"].contains(&kind) { 100.0 } else { progress });
+    } else if total > 0 && ["started", "progress", "completed", "failed", "skipped"].contains(&kind)
+    {
+        let mut files = counts
+            .file_progress
+            .lock()
+            .expect("progress state poisoned");
+        files.insert(
+            file.to_path_buf(),
+            if ["completed", "failed", "skipped"].contains(&kind) {
+                100.0
+            } else {
+                progress
+            },
+        );
         let percent = (files.values().sum::<f64>() / total as f64).round() as u64;
         let _ = crate::set_encoding_progress(app.clone(), Some(percent));
     }
@@ -579,18 +592,28 @@ fn encode_one(
         if config.cpu_limit_percent < 100 {
             let should_pause = throttle_paused(epoch.elapsed(), config.cpu_limit_percent);
             if should_pause != paused {
-                let signal = if should_pause { libc::SIGSTOP } else { libc::SIGCONT };
+                let signal = if should_pause {
+                    libc::SIGSTOP
+                } else {
+                    libc::SIGCONT
+                };
                 // SAFETY: child is still owned and was checked for exit above.
                 if unsafe { libc::kill(child.id() as libc::pid_t, signal) } != 0 {
                     let error = std::io::Error::last_os_error();
-                    if error.raw_os_error() == Some(libc::ESRCH) { continue; }
+                    if error.raw_os_error() == Some(libc::ESRCH) {
+                        continue;
+                    }
                     terminate_encoder(&mut child, &temporary);
                     return Err(format!("Could not apply CPU limit: {error}"));
                 }
                 paused = should_pause;
             }
         }
-        thread::sleep(Duration::from_millis(if config.cpu_limit_percent < 100 { 5 } else { 100 }));
+        thread::sleep(Duration::from_millis(if config.cpu_limit_percent < 100 {
+            5
+        } else {
+            100
+        }));
     }
 }
 
@@ -748,7 +771,10 @@ mod tests {
         fs::write(&path, b"partial proxy").unwrap();
         let mut child = Command::new("/bin/sleep").arg("30").spawn().unwrap();
         // SAFETY: this test owns the live child process.
-        assert_eq!(unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGSTOP) }, 0);
+        assert_eq!(
+            unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGSTOP) },
+            0
+        );
         terminate_encoder(&mut child, &path);
         assert!(child.try_wait().unwrap().is_some());
         assert!(!path.exists());
