@@ -98,6 +98,7 @@ function App() {
       return Number.isFinite(saved) ? Math.min(100, Math.max(10, Math.round(saved))) : 100;
     } catch { return 100; }
   });
+  const cpuLimitRef = useRef(cpuLimit);
   const preferencesDialog = useRef<HTMLDialogElement>(null);
   const completedBatchId = useRef<string | null>(null);
   const startedAt = useRef<number | null>(null);
@@ -158,7 +159,9 @@ function App() {
   }, [preferencesOpen]);
 
   function saveCpuLimit(value: number) {
+    cpuLimitRef.current = value;
     setCpuLimit(value);
+    if (isTauri()) void invoke("set_cpu_limit", { percent: value }).catch((error) => setToolMessage(`Could not apply CPU limit: ${String(error)}`));
     try { localStorage.setItem("deproxy-cpu-limit-v1", String(value)); }
     catch { setToolMessage("Could not save the CPU preference. It will apply for this session."); }
   }
@@ -191,8 +194,9 @@ function App() {
     setElapsedSeconds(null);
     startedAt.current = Date.now();
     try {
-      const id = await invoke<string>("start_batch", { config: { ...config, cpuLimitPercent: cpuLimit } });
+      const id = await invoke<string>("start_batch", { config: { ...config, cpuLimitPercent: cpuLimitRef.current } });
       if (completedBatchId.current !== id) setBatchId(id);
+      void invoke("set_cpu_limit", { percent: cpuLimitRef.current }).catch((error) => setToolMessage(`Could not apply CPU limit: ${String(error)}`));
     } catch (error) {
       setEvents([{ batchId: "", file: "", fileIndex: 0, totalFiles: 0, fileProgress: 0, completedFiles: 0, failedFiles: 1, skippedFiles: 0, sourceBytes: 0, outputBytes: 0, kind: "log", message: String(error) }]);
     } finally {
@@ -285,7 +289,7 @@ function App() {
         <div className="panel-title"><h2 id="preferences-title">Preferences</h2><button type="button" className="preferences-button" aria-label="Close preferences" onClick={() => setPreferencesOpen(false)}><X size={18} /></button></div>
         <label className="field"><span>Maximum CPU use · {cpuLimit}%</span><input aria-label="Maximum CPU use" type="range" min="10" max="100" step="5" value={cpuLimit} onChange={(event) => saveCpuLimit(Number(event.target.value))} /></label>
         <p>100% uses all available CPU capacity. Lower limits reduce average encoding CPU use across all jobs and may slow encoding. Short peaks are possible; hardware video encoding is separate.</p>
-        <p>Saved automatically. Changes apply to the next batch.</p>
+        <p>Saved automatically. Changes apply immediately, including during a batch.</p>
       </dialog>
       {toolMessage && tools?.ffmpeg && tools?.ffprobe && <div role="status" className="notice">{toolMessage}</div>}
 

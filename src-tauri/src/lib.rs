@@ -5,7 +5,10 @@ use serde::Serialize;
 use std::{
     path::PathBuf,
     process::Command,
-    sync::{atomic::AtomicBool, Arc},
+    sync::{
+        atomic::{AtomicBool, AtomicU8},
+        Arc,
+    },
 };
 use tauri::{Emitter, Manager, State};
 use uuid::Uuid;
@@ -156,12 +159,22 @@ fn start_batch(
     }
     let id = Uuid::new_v4().to_string();
     let cancel = Arc::new(AtomicBool::new(false));
-    manager.insert(id.clone(), cancel.clone());
+    let cpu_limit = Arc::new(AtomicU8::new(config.cpu_limit_percent));
+    manager.insert(id.clone(), cancel.clone(), cpu_limit.clone());
     let manager = manager.inner().clone();
     let task_id = id.clone();
     let _ = set_encoding_progress(app.clone(), Some(0));
-    std::thread::spawn(move || run_batch(app, manager, task_id, config, cancel));
+    std::thread::spawn(move || run_batch(app, manager, task_id, config, cancel, cpu_limit));
     Ok(id)
+}
+
+#[tauri::command]
+fn set_cpu_limit(manager: State<'_, Arc<BatchManager>>, percent: u8) -> Result<(), String> {
+    if !(10..=100).contains(&percent) {
+        return Err("CPU limit must be between 10 and 100".into());
+    }
+    manager.set_cpu_limit(percent);
+    Ok(())
 }
 
 #[tauri::command]
@@ -183,7 +196,8 @@ pub fn run() {
             resolve_source_drop,
             install_ffmpeg,
             start_batch,
-            cancel_batch
+            cancel_batch,
+            set_cpu_limit
         ])
         .run(tauri::generate_context!())
         .expect("error while running Anamorphic Proxy");

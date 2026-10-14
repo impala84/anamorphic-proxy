@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize, Ordering},
         mpsc, Arc, Mutex, OnceLock,
     },
     thread,
@@ -80,9 +80,14 @@ pub struct BatchProgress {
     output_bytes: u64,
 }
 
+struct BatchControl {
+    cancel: Arc<AtomicBool>,
+    cpu_limit: Arc<AtomicU8>,
+}
+
 #[derive(Default)]
 pub struct BatchManager {
-    batches: Mutex<HashMap<String, Arc<AtomicBool>>>,
+    batches: Mutex<HashMap<String, BatchControl>>,
 }
 
 #[derive(Default)]
@@ -97,16 +102,25 @@ struct Counts {
 }
 
 impl BatchManager {
-    pub fn insert(&self, id: String, flag: Arc<AtomicBool>) {
-        self.batches
-            .lock()
-            .expect("batch state poisoned")
-            .insert(id, flag);
+    pub fn insert(&self, id: String, flag: Arc<AtomicBool>, cpu_limit: Arc<AtomicU8>) {
+        self.batches.lock().expect("batch state poisoned").insert(
+            id,
+            BatchControl {
+                cancel: flag,
+                cpu_limit,
+            },
+        );
+    }
+
+    pub fn set_cpu_limit(&self, percent: u8) {
+        for control in self.batches.lock().expect("batch state poisoned").values() {
+            control.cpu_limit.store(percent, Ordering::Relaxed);
+        }
     }
 
     pub fn cancel(&self, id: &str) -> bool {
-        if let Some(flag) = self.batches.lock().expect("batch state poisoned").get(id) {
-            flag.store(true, Ordering::SeqCst);
+        if let Some(control) = self.batches.lock().expect("batch state poisoned").get(id) {
+            control.cancel.store(true, Ordering::SeqCst);
             true
         } else {
             false
@@ -442,6 +456,7 @@ fn encode_one(
     total: usize,
     config: &BatchConfig,
     cancel: &AtomicBool,
+    cpu_limit: &AtomicU8,
     counts: &Counts,
 ) -> Result<(), String> {
     if cancel.load(Ordering::SeqCst) {
@@ -588,33 +603,37 @@ fn encode_one(
         }
         // All workers share the same 200ms duty cycle so their combined CPU
         // time stays within the selected fraction of total machine capacity.
+        let limit = cpu_limit.load(Ordering::Relaxed);
         #[cfg(unix)]
-        if config.cpu_limit_percent < 100 {
-            let should_pause = throttle_paused(epoch.elapsed(), config.cpu_limit_percent);
-            if should_pause != paused {
-                let signal = if should_pause {
-                    libc::SIGSTOP
-                } else {
-                    libc::SIGCONT
-                };
-                // SAFETY: child is still owned and was checked for exit above.
-                if unsafe { libc::kill(child.id() as libc::pid_t, signal) } != 0 {
-                    let error = std::io::Error::last_os_error();
-                    if error.raw_os_error() == Some(libc::ESRCH) {
-                        continue;
-                    }
-                    terminate_encoder(&mut child, &temporary);
-                    return Err(format!("Could not apply CPU limit: {error}"));
+        {
+            let should_pause = limit < 100 && throttle_paused(epoch.elapsed(), limit);
+            if let Err(error) = apply_throttle(&child, &mut paused, should_pause) {
+                if error.raw_os_error() == Some(libc::ESRCH) {
+                    continue;
                 }
-                paused = should_pause;
+                terminate_encoder(&mut child, &temporary);
+                return Err(format!("Could not apply CPU limit: {error}"));
             }
         }
-        thread::sleep(Duration::from_millis(if config.cpu_limit_percent < 100 {
-            5
-        } else {
-            100
-        }));
+        thread::sleep(Duration::from_millis(if limit < 100 { 5 } else { 100 }));
     }
+}
+
+#[cfg(unix)]
+fn apply_throttle(child: &Child, paused: &mut bool, should_pause: bool) -> std::io::Result<()> {
+    if should_pause != *paused {
+        let signal = if should_pause {
+            libc::SIGSTOP
+        } else {
+            libc::SIGCONT
+        };
+        // SAFETY: the caller owns this live child process.
+        if unsafe { libc::kill(child.id() as libc::pid_t, signal) } != 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        *paused = should_pause;
+    }
+    Ok(())
 }
 
 fn terminate_encoder(child: &mut Child, temporary: &Path) {
@@ -634,6 +653,7 @@ pub fn run_batch(
     id: String,
     config: BatchConfig,
     cancel: Arc<AtomicBool>,
+    cpu_limit: Arc<AtomicU8>,
 ) {
     let source_dir = PathBuf::from(&config.source_dir);
     let output_dir = PathBuf::from(&config.output_dir);
@@ -678,11 +698,12 @@ pub fn run_batch(
     let files = Arc::new(files);
     let mut workers = Vec::new();
     for _ in 0..effective_parallel_jobs(&config) {
-        let (app, id, config, cancel, counts, next, files) = (
+        let (app, id, config, cancel, cpu_limit, counts, next, files) = (
             app.clone(),
             id.clone(),
             config.clone(),
             cancel.clone(),
+            cpu_limit.clone(),
             counts.clone(),
             next.clone(),
             files.clone(),
@@ -703,6 +724,7 @@ pub fn run_batch(
                 total,
                 &config,
                 &cancel,
+                &cpu_limit,
                 &counts,
             ) {
                 if error != "Cancelled" {
@@ -756,12 +778,62 @@ mod tests {
     use super::*;
 
     #[test]
+    fn changing_limit_updates_all_running_batches_without_affecting_cancellation() {
+        let manager = BatchManager::default();
+        let first = Arc::new(AtomicU8::new(100));
+        let second = Arc::new(AtomicU8::new(50));
+        manager.insert(
+            "first".into(),
+            Arc::new(AtomicBool::new(false)),
+            first.clone(),
+        );
+        manager.insert(
+            "second".into(),
+            Arc::new(AtomicBool::new(false)),
+            second.clone(),
+        );
+        manager.set_cpu_limit(10);
+        assert_eq!(first.load(Ordering::Relaxed), 10);
+        assert_eq!(second.load(Ordering::Relaxed), 10);
+        manager.set_cpu_limit(100);
+        assert_eq!(first.load(Ordering::Relaxed), 100);
+        assert_eq!(second.load(Ordering::Relaxed), 100);
+        assert!(manager.cancel("first"));
+        manager.remove("first");
+        manager.set_cpu_limit(25);
+        assert_eq!(second.load(Ordering::Relaxed), 25);
+        assert_eq!(first.load(Ordering::Relaxed), 100);
+    }
+
+    #[test]
     fn cpu_duty_cycle_is_shared_and_unlimited_by_default() {
         assert_eq!(default_cpu_limit(), 100);
         assert!(!throttle_paused(Duration::from_millis(99), 50));
         assert!(throttle_paused(Duration::from_millis(100), 50));
         assert!(!throttle_paused(Duration::from_millis(200), 50));
         assert!(!throttle_paused(Duration::from_millis(199), 100));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn removing_limit_resumes_a_stopped_process() {
+        let mut child = Command::new("/bin/sleep").arg("0.1").spawn().unwrap();
+        let mut paused = false;
+        apply_throttle(&child, &mut paused, true).unwrap();
+        assert!(paused);
+        thread::sleep(Duration::from_millis(150));
+        assert!(child.try_wait().unwrap().is_none());
+        apply_throttle(&child, &mut paused, false).unwrap();
+        assert!(!paused);
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while child.try_wait().unwrap().is_none() {
+            if Instant::now() >= deadline {
+                let _ = child.kill();
+                let _ = child.wait();
+                panic!("encoder did not resume");
+            }
+            thread::sleep(Duration::from_millis(10));
+        }
     }
 
     #[cfg(unix)]

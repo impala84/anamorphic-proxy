@@ -8,6 +8,11 @@ High-resolution anamorphic camera originals are beautiful, but they are unnecess
 
 DeProxy turns the known-good FFmpeg workflow into one focused utility. Pick the footage, choose its squeeze and editing resolution, and let the Mac's local hardware do the work. The resulting files are de-squeezed, square-pixel, compact, correctly tagged for QuickTime, and designed to retain the source naming and timecode needed for reliable relinking. Nothing is uploaded, and advanced codec choices remain available without overwhelming the default workflow.
 
+## What's new in 0.3.5
+
+- Applies CPU preference changes immediately to active encoders during a batch.
+- Resumes throttled encoders when the limit returns to 100%.
+
 ## What's new in 0.3.4
 
 - Extends window dragging to the full-width top strip beside the macOS window controls.
@@ -27,7 +32,7 @@ DeProxy turns the known-good FFmpeg workflow into one focused utility. Pick the 
 
 ## Desktop preferences and progress
 
-Drag anywhere in the top header to move the window (the preferences button remains clickable). The cog beside the FFmpeg status opens Preferences. Maximum CPU use defaults to 100% and is saved locally across launches, independently of encoding presets. Changes apply to the next batch.
+Drag anywhere in the top header to move the window (the preferences button remains clickable). The cog beside the FFmpeg status opens Preferences. Maximum CPU use defaults to 100% and is saved locally across launches, independently of encoding presets. Changes apply immediately, including during a batch.
 
 Lower limits throttle all FFmpeg workers on a shared 200ms cycle to reduce average CPU use as a fraction of total machine capacity. Brief peaks and source probing can exceed the selected average; this does not limit the hardware video encoder or other apps. The default 100% adds no pauses.
 
