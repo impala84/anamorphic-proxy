@@ -8,12 +8,26 @@ High-resolution anamorphic camera originals are beautiful, but they are unnecess
 
 DeProxy turns the known-good FFmpeg workflow into one focused utility. Pick the footage, choose its squeeze and editing resolution, and let the Mac's local hardware do the work. The resulting files are de-squeezed, square-pixel, compact, correctly tagged for QuickTime, and designed to retain the source naming and timecode needed for reliable relinking. Nothing is uploaded, and advanced codec choices remain available without overwhelming the default workflow.
 
+## What's new in 0.3.3
+
+- Displays batch progress and percentage on the macOS Dock icon, including while minimized.
+- Makes the entire top header draggable, while keeping Preferences clickable.
+- Adds a preferences cog beside FFmpeg status with a saved 10–100% average CPU limit, defaulting to 100%, that applies to the next batch.
+
 ## What's new in 0.3.2
 
 - Adds an optional **Preserve source audio** mode that retains every source stream's codec, channel count, track order, sample rate, bit depth, and timing.
 - Avoids AAC encoder priming and skip-sample metadata that can make multi-track proxy audio conform differently inside an NLE.
 - Adds explicit **Preserve source audio**, **AAC**, and **No audio** choices under Advanced encoding.
 - Migrates existing saved presets: the old AAC toggle becomes AAC or No audio, while new presets use the selected audio mode.
+
+## Desktop preferences and progress
+
+Drag anywhere in the top header to move the window (the preferences button remains clickable). The cog beside the FFmpeg status opens Preferences. Maximum CPU use defaults to 100% and is saved locally across launches, independently of encoding presets. Changes apply to the next batch.
+
+Lower limits throttle all FFmpeg workers on a shared 200ms cycle to reduce average CPU use as a fraction of total machine capacity. Brief peaks and source probing can exceed the selected average; this does not limit the hardware video encoder or other apps. The default 100% adds no pauses.
+
+During encoding, the macOS Dock icon shows the batch percentage and progress bar, updated by the native worker even when the window is minimized. Indicators clear when a batch finishes, fails, or is cancelled. On other supported desktop platforms, the native taskbar progress bar is used.
 
 ## What v1 does
 

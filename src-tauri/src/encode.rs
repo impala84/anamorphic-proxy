@@ -5,13 +5,13 @@ use std::{
     fs,
     io::{BufRead, BufReader, Read},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
+    process::{Child, Command, Stdio},
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
-        mpsc, Arc, Mutex,
+        mpsc, Arc, Mutex, OnceLock,
     },
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
@@ -47,6 +47,12 @@ pub struct BatchConfig {
     pub preserve_timecode: bool,
     pub audio_mode: String,
     pub skip_existing: bool,
+    #[serde(default = "default_cpu_limit")]
+    pub cpu_limit_percent: u8,
+}
+
+fn default_cpu_limit() -> u8 {
+    100
 }
 
 #[derive(Debug, Clone)]
@@ -81,6 +87,8 @@ pub struct BatchManager {
 
 #[derive(Default)]
 struct Counts {
+    throttle_epoch: OnceLock<Instant>,
+    file_progress: Mutex<HashMap<PathBuf, f64>>,
     complete: AtomicUsize,
     failed: AtomicUsize,
     skipped: AtomicUsize,
@@ -379,6 +387,26 @@ fn emit(
     kind: &str,
     message: Option<String>,
 ) {
+    // Update native indicators from the worker, even with a minimized webview.
+    if kind == "batch-complete" {
+        let _ = crate::set_encoding_progress(app.clone(), None);
+    } else if total > 0 && ["started", "progress", "completed", "failed", "skipped"].contains(&kind)
+    {
+        let mut files = counts
+            .file_progress
+            .lock()
+            .expect("progress state poisoned");
+        files.insert(
+            file.to_path_buf(),
+            if ["completed", "failed", "skipped"].contains(&kind) {
+                100.0
+            } else {
+                progress
+            },
+        );
+        let percent = (files.values().sum::<f64>() / total as f64).round() as u64;
+        let _ = crate::set_encoding_progress(app.clone(), Some(percent));
+    }
     let _ = app.emit(
         "batch-progress",
         BatchProgress {
@@ -476,11 +504,11 @@ fn encode_one(
         value
     });
 
+    let epoch = *counts.throttle_epoch.get_or_init(Instant::now);
+    let mut paused = false;
     loop {
         if cancel.load(Ordering::SeqCst) {
-            let _ = child.kill();
-            let _ = child.wait();
-            let _ = fs::remove_file(&temporary);
+            terminate_encoder(&mut child, &temporary);
             emit(
                 app,
                 batch_id,
@@ -508,10 +536,14 @@ fn encode_one(
                 }
             }
         }
-        if let Some(status) = child
-            .try_wait()
-            .map_err(|e| format!("Could not monitor ffmpeg: {e}"))?
-        {
+        let status = match child.try_wait() {
+            Ok(status) => status,
+            Err(error) => {
+                terminate_encoder(&mut child, &temporary);
+                return Err(format!("Could not monitor ffmpeg: {error}"));
+            }
+        };
+        if let Some(status) = status {
             let diagnostics = stderr_thread.join().unwrap_or_default();
             let useful = diagnostics
                 .lines()
@@ -554,8 +586,46 @@ fn encode_one(
                 useful
             });
         }
-        thread::sleep(Duration::from_millis(100));
+        // All workers share the same 200ms duty cycle so their combined CPU
+        // time stays within the selected fraction of total machine capacity.
+        #[cfg(unix)]
+        if config.cpu_limit_percent < 100 {
+            let should_pause = throttle_paused(epoch.elapsed(), config.cpu_limit_percent);
+            if should_pause != paused {
+                let signal = if should_pause {
+                    libc::SIGSTOP
+                } else {
+                    libc::SIGCONT
+                };
+                // SAFETY: child is still owned and was checked for exit above.
+                if unsafe { libc::kill(child.id() as libc::pid_t, signal) } != 0 {
+                    let error = std::io::Error::last_os_error();
+                    if error.raw_os_error() == Some(libc::ESRCH) {
+                        continue;
+                    }
+                    terminate_encoder(&mut child, &temporary);
+                    return Err(format!("Could not apply CPU limit: {error}"));
+                }
+                paused = should_pause;
+            }
+        }
+        thread::sleep(Duration::from_millis(if config.cpu_limit_percent < 100 {
+            5
+        } else {
+            100
+        }));
     }
+}
+
+fn terminate_encoder(child: &mut Child, temporary: &Path) {
+    // SIGKILL also terminates a worker stopped by the CPU limiter.
+    let _ = child.kill();
+    let _ = child.wait();
+    let _ = fs::remove_file(temporary);
+}
+
+fn throttle_paused(elapsed: Duration, percent: u8) -> bool {
+    elapsed.as_millis() % 200 >= u128::from(percent) * 2
 }
 
 pub fn run_batch(
@@ -685,6 +755,31 @@ pub fn run_batch(
 mod tests {
     use super::*;
 
+    #[test]
+    fn cpu_duty_cycle_is_shared_and_unlimited_by_default() {
+        assert_eq!(default_cpu_limit(), 100);
+        assert!(!throttle_paused(Duration::from_millis(99), 50));
+        assert!(throttle_paused(Duration::from_millis(100), 50));
+        assert!(!throttle_paused(Duration::from_millis(200), 50));
+        assert!(!throttle_paused(Duration::from_millis(199), 100));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn cancellation_reaps_a_paused_encoder_and_removes_partial_output() {
+        let path = std::env::temp_dir().join(format!("deproxy-cancel-{}", Uuid::new_v4()));
+        fs::write(&path, b"partial proxy").unwrap();
+        let mut child = Command::new("/bin/sleep").arg("30").spawn().unwrap();
+        // SAFETY: this test owns the live child process.
+        assert_eq!(
+            unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGSTOP) },
+            0
+        );
+        terminate_encoder(&mut child, &path);
+        assert!(child.try_wait().unwrap().is_some());
+        assert!(!path.exists());
+    }
+
     fn config() -> BatchConfig {
         BatchConfig {
             source_dir: "/source".into(),
@@ -699,6 +794,7 @@ mod tests {
             preserve_timecode: true,
             audio_mode: "preserve".into(),
             skip_existing: true,
+            cpu_limit_percent: 100,
         }
     }
 

@@ -547,8 +547,9 @@ dependencies = [
 
 [[package]]
 name = "deproxy"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
+ "libc",
  "serde",
  "serde_json",
  "tauri",

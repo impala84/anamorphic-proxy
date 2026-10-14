@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Check, ChevronDown, ChevronUp, CircleAlert, Film, FolderOpen, OctagonX, Play, RotateCcw } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, CircleAlert, Film, FolderOpen, OctagonX, Play, RotateCcw, Settings, X } from "lucide-react";
 import { basename, formatBytes, formatElapsed, latestFileEvents, overallProgress, proxyPath, recommendedBitrate, reductionPercent } from "./lib";
 import type { BatchConfig, BatchProgress, ToolStatus } from "./types";
 
@@ -84,6 +84,15 @@ function App() {
   const [selectedPreset, setSelectedPreset] = useState("");
   const [savingPreset, setSavingPreset] = useState(false);
   const [presetName, setPresetName] = useState("");
+  const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const [cpuLimit, setCpuLimit] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem("deproxy-cpu-limit-v1") ?? 100);
+      return Number.isFinite(saved) ? Math.min(100, Math.max(10, Math.round(saved))) : 100;
+    } catch { return 100; }
+  });
+  const preferencesDialog = useRef<HTMLDialogElement>(null);
+  const completedBatchId = useRef<string | null>(null);
   const startedAt = useRef<number | null>(null);
 
   const update = <K extends keyof BatchConfig>(key: K, value: BatchConfig[K]) => setConfig((old) => ({ ...old, [key]: value }));
@@ -99,19 +108,20 @@ function App() {
 
   useEffect(() => {
     invoke<ToolStatus>("check_tools").then(setTools).catch(() => setTools({ ffmpeg: false, ffprobe: false }));
-    const unlisten = listen<BatchProgress>("batch-progress", ({ payload }) => {
+    const unlisten = isTauri() ? listen<BatchProgress>("batch-progress", ({ payload }) => {
       setEvents((old) => [...old.slice(-499), payload]);
       if (payload.kind === "batch-complete") {
+        completedBatchId.current = payload.batchId;
         setBatchId(null);
         if (startedAt.current) setElapsedSeconds((Date.now() - startedAt.current) / 1000);
       }
-    });
-    const unlistenInstall = listen<{ success: boolean; message: string }>("tool-install-status", ({ payload }) => {
+    }) : Promise.resolve(() => {});
+    const unlistenInstall = isTauri() ? listen<{ success: boolean; message: string }>("tool-install-status", ({ payload }) => {
       setInstalling(false);
       setToolMessage(payload.message);
       if (payload.success) invoke<ToolStatus>("check_tools").then(setTools);
-    });
-    const unlistenDrop = getCurrentWebviewWindow().onDragDropEvent(async (event) => {
+    }) : Promise.resolve(() => {});
+    const unlistenDrop = isTauri() ? getCurrentWebviewWindow().onDragDropEvent(async (event) => {
       if (event.payload.type === "enter" || event.payload.type === "over") setDragging(true);
       if (event.payload.type === "leave") setDragging(false);
       if (event.payload.type === "drop") {
@@ -126,13 +136,25 @@ function App() {
           }
         }
       }
-    });
+    }) : Promise.resolve(() => {});
     return () => {
       void unlisten.then((fn) => fn());
       void unlistenInstall.then((fn) => fn());
       void unlistenDrop.then((fn) => fn());
     };
   }, [running, proxyFolderName]);
+
+  useEffect(() => {
+    const dialog = preferencesDialog.current;
+    if (preferencesOpen) dialog?.showModal();
+    else dialog?.close();
+  }, [preferencesOpen]);
+
+  function saveCpuLimit(value: number) {
+    setCpuLimit(value);
+    try { localStorage.setItem("deproxy-cpu-limit-v1", String(value)); }
+    catch { setToolMessage("Could not save the CPU preference. It will apply for this session."); }
+  }
 
   async function installTools() {
     setInstalling(true);
@@ -157,12 +179,13 @@ function App() {
 
   async function start() {
     setStarting(true);
+    completedBatchId.current = null;
     setEvents([]);
     setElapsedSeconds(null);
     startedAt.current = Date.now();
     try {
-      const id = await invoke<string>("start_batch", { config });
-      setBatchId(id);
+      const id = await invoke<string>("start_batch", { config: { ...config, cpuLimitPercent: cpuLimit } });
+      if (completedBatchId.current !== id) setBatchId(id);
     } catch (error) {
       setEvents([{ batchId: "", file: "", fileIndex: 0, totalFiles: 0, fileProgress: 0, completedFiles: 0, failedFiles: 1, skippedFiles: 0, sourceBytes: 0, outputBytes: 0, kind: "log", message: String(error) }]);
     } finally {
@@ -240,13 +263,27 @@ function App() {
 
   return (
     <main>
-      <header>
+      <header onMouseDown={(event) => {
+        if (isTauri() && event.button === 0 && !(event.target as HTMLElement).closest("button")) {
+          event.preventDefault();
+          void getCurrentWebviewWindow().startDragging().catch(console.error);
+        }
+      }}>
         <div className="mark"><img src="/deproxy-logo.svg" alt="" /></div>
         <p>Hardware-accelerated anamorphic proxies</p>
         <div className={`status ${tools?.ffmpeg && tools?.ffprobe ? "ok" : "bad"}`}>
           {tools === null ? "Checking tools…" : tools.ffmpeg && tools.ffprobe ? <><Check size={13} /> FFmpeg ready</> : <><CircleAlert size={13} /> FFmpeg missing</>}
         </div>
+        <button type="button" className="preferences-button" aria-label="Preferences" title="Preferences" onClick={() => setPreferencesOpen(true)}><Settings size={18} /></button>
       </header>
+
+      <dialog ref={preferencesDialog} className="preferences" aria-labelledby="preferences-title" onCancel={() => setPreferencesOpen(false)} onClose={() => setPreferencesOpen(false)}>
+        <div className="panel-title"><h2 id="preferences-title">Preferences</h2><button type="button" className="preferences-button" aria-label="Close preferences" onClick={() => setPreferencesOpen(false)}><X size={18} /></button></div>
+        <label className="field"><span>Maximum CPU use · {cpuLimit}%</span><input aria-label="Maximum CPU use" type="range" min="10" max="100" step="5" value={cpuLimit} onChange={(event) => saveCpuLimit(Number(event.target.value))} /></label>
+        <p>100% uses all available CPU capacity. Lower limits reduce average encoding CPU use across all jobs and may slow encoding. Short peaks are possible; hardware video encoding is separate.</p>
+        <p>Saved automatically. Changes apply to the next batch.</p>
+      </dialog>
+      {toolMessage && tools?.ffmpeg && tools?.ffprobe && <div role="status" className="notice">{toolMessage}</div>}
 
       {tools && (!tools.ffmpeg || !tools.ffprobe) && (
         <div className="notice"><CircleAlert size={18} /><div><strong>FFmpeg and FFprobe are required</strong><span>{toolMessage || "Install them automatically with Homebrew."}</span></div><button type="button" onClick={installTools} disabled={installing}>{installing ? "Installing…" : "Install FFmpeg"}</button></div>
