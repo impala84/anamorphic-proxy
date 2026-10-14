@@ -40,7 +40,6 @@ main { overflow: hidden; }
 .hero { min-height: 900px; max-width: 1324px; margin: 0 auto; padding: 190px 48px 120px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 52px; position: relative; }
 .hero::before { content: ""; position: absolute; width: 640px; height: 640px; left: -300px; top: 30px; background: radial-gradient(circle, #a5db3620, transparent 68%); pointer-events: none; }
 .eyebrow { margin: 0 0 25px; color: #9ca793; font-size: .73rem; text-transform: uppercase; letter-spacing: .14em; font-weight: 650; display: flex; align-items: center; gap: 9px; }
-.eyebrow span { width: 6px; height: 6px; background: var(--acid); border-radius: 50%; box-shadow: 0 0 16px #caff5588; }
 h1, h2 { font-family: var(--display); font-weight: 650; letter-spacing: -.052em; line-height: .96; margin: 0; }
 h1 { font-size: clamp(4rem, 5.25vw, 5.8rem); max-width: 630px; }
 h1 em, h2 em { color: var(--acid); font-style: normal; }

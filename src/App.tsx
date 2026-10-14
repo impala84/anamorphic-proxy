@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
@@ -65,6 +65,13 @@ function NumericStepper({ label, value, min, max, unit, onChange }: { label: str
       </div>
     </label>
   );
+}
+
+function dragWindow(event: MouseEvent<HTMLElement>) {
+  if (isTauri() && event.button === 0 && !(event.target as HTMLElement).closest("button")) {
+    event.preventDefault();
+    void getCurrentWebviewWindow().startDragging().catch(console.error);
+  }
 }
 
 function App() {
@@ -262,13 +269,10 @@ function App() {
   const ready = tools?.ffmpeg && tools?.ffprobe && config.sourceDir && config.outputDir && config.squeeze > 0 && config.outputHeight > 0;
 
   return (
+    <>
+    <div className="window-drag-strip" aria-hidden="true" onMouseDown={dragWindow} />
     <main>
-      <header onMouseDown={(event) => {
-        if (isTauri() && event.button === 0 && !(event.target as HTMLElement).closest("button")) {
-          event.preventDefault();
-          void getCurrentWebviewWindow().startDragging().catch(console.error);
-        }
-      }}>
+      <header onMouseDown={dragWindow}>
         <div className="mark"><img src="/deproxy-logo.svg" alt="" /></div>
         <p>Hardware-accelerated anamorphic proxies</p>
         <div className={`status ${tools?.ffmpeg && tools?.ffprobe ? "ok" : "bad"}`}>
@@ -352,6 +356,7 @@ function App() {
         {running ? <button className="danger" onClick={cancel}><OctagonX size={17} /> Cancel batch</button> : <button className="primary" disabled={!ready || starting} onClick={start}><Play size={17} fill="currentColor" />{starting ? "Starting…" : "Generate proxies"}</button>}
       </footer>
     </main>
+    </>
   );
 }
 
