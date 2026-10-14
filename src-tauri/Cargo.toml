@@ -1,6 +1,6 @@
 [package]
 name = "deproxy"
-version = "0.3.2"
+version = "0.3.3"
 description = "Hardware-accelerated anamorphic proxy generator for macOS"
 authors = ["DeProxy contributors"]
 license = "MIT"

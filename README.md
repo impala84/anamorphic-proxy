@@ -8,6 +8,12 @@ High-resolution anamorphic camera originals are beautiful, but they are unnecess
 
 DeProxy turns the known-good FFmpeg workflow into one focused utility. Pick the footage, choose its squeeze and editing resolution, and let the Mac's local hardware do the work. The resulting files are de-squeezed, square-pixel, compact, correctly tagged for QuickTime, and designed to retain the source naming and timecode needed for reliable relinking. Nothing is uploaded, and advanced codec choices remain available without overwhelming the default workflow.
 
+## What's new in 0.3.3
+
+- Displays batch progress and percentage on the macOS Dock icon, including while minimized.
+- Makes the entire top header draggable, while keeping Preferences clickable.
+- Adds a preferences cog beside FFmpeg status with a saved 10–100% average CPU limit, defaulting to 100%, that applies to the next batch.
+
 ## What's new in 0.3.2
 
 - Adds an optional **Preserve source audio** mode that retains every source stream's codec, channel count, track order, sample rate, bit depth, and timing.
