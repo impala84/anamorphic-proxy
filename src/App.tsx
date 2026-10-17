@@ -6,6 +6,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Check, ChevronDown, ChevronUp, CircleAlert, Film, FolderOpen, OctagonX, Play, RotateCcw, Settings, X } from "lucide-react";
 import { basename, formatBytes, formatElapsed, latestFileEvents, overallProgress, proxyPath, recommendedBitrate, reductionPercent } from "./lib";
 import type { BatchConfig, BatchProgress, ToolStatus } from "./types";
+import { version as appVersion } from "../package.json";
 
 type PresetSettings = Omit<BatchConfig, "sourceDir" | "outputDir"> & { proxyFolderName: string };
 type SavedPreset = { name: string; settings: PresetSettings };
@@ -15,6 +16,9 @@ const squeezes = [1, 1.33, 1.5, 1.6, 1.8, 2];
 const heights = [720, 1080, 2160];
 
 const initialConfig: BatchConfig = {
+  rawMode: false,
+  rawProjectAspect: true,
+  rawIntermediateQuality: "standard",
   sourceDir: "",
   outputDir: "",
   filenameSuffix: "_proxy",
@@ -76,6 +80,25 @@ function dragWindow(event: MouseEvent<HTMLElement>) {
 
 function App() {
   const [config, setConfig] = useState(initialConfig);
+  const [sourceInfo, setSourceInfo] = useState<{ totalFiles: number; rawClips: number } | null>(null);
+  const [sourceChecking, setSourceChecking] = useState(false);
+  const usesRaw = (sourceInfo?.rawClips ?? 0) > 0;
+  useEffect(() => {
+    let stale = false;
+    setSourceInfo(null);
+    if (!config.sourceDir || !isTauri()) return;
+    setSourceChecking(true);
+    void invoke<{ totalFiles: number; rawClips: number }>("inspect_source", { sourceDir: config.sourceDir }).then((info) => {
+      if (stale) return;
+      setSourceInfo(info);
+      setConfig((old) => ({ ...old, rawMode: info.rawClips > 0, audioMode: info.rawClips > 0 ? "preserve" : old.audioMode }));
+    }).catch((error) => { if (!stale) setToolMessage(String(error)); }).finally(() => { if (!stale) setSourceChecking(false); });
+    return () => { stale = true; };
+  }, [config.sourceDir]);
+  const [rawPlan, setRawPlan] = useState<{ project: string; clips: { file: string; squeeze: number; fromProject: boolean }[] } | null>(null);
+  const [rawReviewOpen, setRawReviewOpen] = useState(false);
+  const rawDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => { if (rawReviewOpen) rawDialog.current?.showModal(); else rawDialog.current?.close(); }, [rawReviewOpen]);
   const [tools, setTools] = useState<ToolStatus | null>(null);
   const [batchId, setBatchId] = useState<string | null>(null);
   const [events, setEvents] = useState<BatchProgress[]>([]);
@@ -187,14 +210,35 @@ function App() {
     if (typeof selected === "string") update("outputDir", selected);
   }
 
-  async function start() {
+  async function start(confirmed = false) {
+    const batchConfig = { ...config, rawMode: usesRaw };
+    if (!confirmed) {
+      setStarting(true);
+      try {
+        const info = await invoke<{ rawClips: number; totalFiles: number }>("inspect_source", { sourceDir: config.sourceDir });
+        setSourceInfo(info);
+        batchConfig.rawMode = info.rawClips > 0;
+      } catch (error) { setToolMessage(String(error)); setStarting(false); return; }
+    }
+    if (batchConfig.rawMode && !confirmed) {
+      setStarting(true);
+      try {
+        const plan = await invoke<NonNullable<typeof rawPlan>>("inspect_raw", { config: batchConfig });
+        if (!plan.clips.length) throw new Error("No Canon RAW Light (.CRM) clips found in this folder. Turn off RAW mode for regular video files.");
+        setRawPlan(plan);
+        setRawReviewOpen(true);
+      } catch (error) { setToolMessage(String(error)); }
+      finally { setStarting(false); }
+      return;
+    }
+    setRawReviewOpen(false);
     setStarting(true);
     completedBatchId.current = null;
     setEvents([]);
     setElapsedSeconds(null);
     startedAt.current = Date.now();
     try {
-      const id = await invoke<string>("start_batch", { config: { ...config, cpuLimitPercent: cpuLimitRef.current } });
+      const id = await invoke<string>("start_batch", { config: { ...batchConfig, rawAspects: batchConfig.rawMode ? Object.fromEntries(rawPlan?.clips.map((clip) => [clip.file, clip.squeeze]) ?? []) : {}, cpuLimitPercent: cpuLimitRef.current } });
       if (completedBatchId.current !== id) setBatchId(id);
       void invoke("set_cpu_limit", { percent: cpuLimitRef.current }).catch((error) => setToolMessage(`Could not apply CPU limit: ${String(error)}`));
     } catch (error) {
@@ -278,7 +322,7 @@ function App() {
     <main>
       <header onMouseDown={dragWindow}>
         <div className="mark"><img src="/deproxy-logo.svg" alt="" /></div>
-        <p>Hardware-accelerated anamorphic proxies</p>
+        <p><span className="app-version">v{appVersion}</span> Hardware-accelerated anamorphic proxies</p>
         <div className={`status ${tools?.ffmpeg && tools?.ffprobe ? "ok" : "bad"}`}>
           {tools === null ? "Checking tools…" : tools.ffmpeg && tools.ffprobe ? <><Check size={13} /> FFmpeg ready</> : <><CircleAlert size={13} /> FFmpeg missing</>}
         </div>
@@ -298,21 +342,24 @@ function App() {
       )}
 
       <section className={`paths ${dragging ? "dragging" : ""}`}>
-        <button className={`path-card ${config.sourceDir ? "selected" : ""}`} onClick={chooseSource} disabled={running}>
-          <FolderOpen size={20} /><span><small>Source folder</small><strong>{dragging ? "Drop folder here" : config.sourceDir ? basename(config.sourceDir) : "Choose or drop footage…"}</strong><em>{config.sourceDir || "MP4, MOV, MXF and M4V"}</em></span>
+        <button className={`path-card ${config.sourceDir ? "selected" : ""}`} onClick={chooseSource} disabled={running || starting}>
+          <FolderOpen size={20} /><span><small>Source folder</small><strong>{dragging ? "Drop folder here" : config.sourceDir ? basename(config.sourceDir) : "Choose or drop footage…"}</strong><em>{config.sourceDir || "MP4, MOV, MXF, M4V and Canon CRM"}</em></span>
         </button>
-        <button className={`path-card ${config.outputDir ? "selected" : ""}`} onClick={chooseOutput} disabled={running || !config.sourceDir}>
+        <button className={`path-card ${config.outputDir ? "selected" : ""}`} onClick={chooseOutput} disabled={running || starting || !config.sourceDir}>
           <FolderOpen size={20} /><span><small>Output folder</small><strong>{config.outputDir ? basename(config.outputDir) : "Source/Proxy"}</strong><em>{config.outputDir || "Created automatically"}</em></span>
         </button>
       </section>
 
+      {sourceChecking && <p className="source-detection" role="status">Checking source files…</p>}
+      {usesRaw && <details className="raw-options"><summary><Film size={14} /> {sourceInfo?.rawClips} Canon RAW Light clips detected <span>Resolve Studio</span></summary><div className="raw-help"><p>Resolve Studio decodes RAW automatically. Keep Resolve open with external scripting set to Local. DeProxy uses one temporary project for the whole batch, then restores your project when finished.</p><label className="field raw-quality"><span>RAW decoding quality</span><div className="select-wrap"><select disabled={running || starting} value={config.rawIntermediateQuality} onChange={(e) => update("rawIntermediateQuality", e.target.value as BatchConfig["rawIntermediateQuality"])}><option value="standard">High · recommended</option><option value="hq">Highest · larger temporary files</option><option value="lt">Balanced · smaller temporary files</option><option value="proxy">Compact · lowest temporary quality</option></select><ChevronDown size={15} /></div></label><p>This controls Resolve’s temporary 10-bit ProRes file. High uses ProRes 422; Highest uses 422 HQ, Balanced uses 422 LT, and Compact uses ProRes Proxy. The temporary file is deleted after encoding.</p><label><input type="checkbox" checked={config.rawProjectAspect} disabled={running || starting} onChange={(e) => update("rawProjectAspect", e.target.checked)} /> Use clip aspect ratios from the open Resolve project</label><p>Unmatched clips use your selected squeeze. Corrections are baked into square pixels, up to the selected DCI size. RAW development uses Resolve’s defaults without film grades. Temporary files need extra space; the CPU limit applies to FFmpeg.</p></div></details>}
       <section className="panel">
         <div className="panel-title"><h2>Proxy settings</h2><span>{codecLabels[config.codec]}</span></div>
+        {usesRaw && <div className="raw-pipeline"><strong>Canon RAW <span>→</span> {config.codec === "prores-proxy" ? "ProRes" : config.codec === "h264" ? "H.264" : "H.265"} proxy</strong><p>Resolve decodes the source. The encoder, output height and {config.codec === "prores-proxy" ? "ProRes quality" : "bitrate"} below control your finished proxy. RAW clips run one at a time.</p></div>}
         <div className="settings-grid">
-          <Choice label="Anamorphic squeeze" values={squeezes} value={config.squeeze} suffix="×" onChange={(v) => update("squeeze", v)} />
+          <Choice label={usesRaw ? "Fallback squeeze" : "Anamorphic squeeze"} values={squeezes} value={config.squeeze} suffix="×" onChange={(v) => update("squeeze", v)} />
           <Choice label="Output height" values={heights} value={config.outputHeight} suffix="p" onChange={selectOutputHeight} />
-          {config.codec === "prores-proxy" ? <label className="field"><span>ProRes quality</span><div className="select-wrap"><select value={config.proresProfile} onChange={(e) => update("proresProfile", e.target.value as BatchConfig["proresProfile"])}><option value="proxy">Proxy</option><option value="lt">422 LT</option><option value="standard">422</option><option value="hq">422 HQ</option></select><ChevronDown size={15} /></div></label> : <NumericStepper label="Bitrate" value={config.bitrateMbps} min={1} max={100} unit="Mbps" onChange={(v) => update("bitrateMbps", v)} />}
-          <NumericStepper label="Parallel jobs" value={config.parallelJobs} min={1} max={config.codec === "prores-proxy" ? (config.outputHeight >= 2160 ? 1 : 2) : 8} unit="jobs" onChange={(v) => update("parallelJobs", v)} />
+          {config.codec === "prores-proxy" ? <label className="field"><span>ProRes quality</span><div className="select-wrap"><select value={config.proresProfile} onChange={(e) => update("proresProfile", e.target.value as BatchConfig["proresProfile"])}><option value="proxy">Proxy</option><option value="lt">422 LT</option><option value="standard">422</option><option value="hq">422 HQ</option></select><ChevronDown size={15} /></div></label> : <NumericStepper label={usesRaw ? "Final bitrate" : "Bitrate"} value={config.bitrateMbps} min={1} max={100} unit="Mbps" onChange={(v) => update("bitrateMbps", v)} />}
+          {usesRaw ? <label className="field"><span>Parallel jobs</span><div className="readonly-setting raw-locked" aria-label="Parallel jobs locked to one for RAW">1 job <small>Locked for RAW</small></div></label> : <NumericStepper label="Parallel jobs" value={config.parallelJobs} min={1} max={config.codec === "prores-proxy" ? (config.outputHeight >= 2160 ? 1 : 2) : 8} unit="jobs" onChange={(v) => update("parallelJobs", v)} />}
           <label className="field wide"><span>Filename suffix</span><input value={config.filenameSuffix} onChange={(e) => update("filenameSuffix", e.target.value)} placeholder="_proxy" /></label>
           <label className="field wide"><span>Proxy folder name</span><input value={proxyFolderName} onChange={(e) => renameProxyFolder(e.target.value)} placeholder="Proxy" /></label>
         </div>
@@ -320,7 +367,7 @@ function App() {
           <summary>Advanced encoding <span>{config.codec === "hevc-main10" ? "Recommended" : "Custom"}</span></summary>
           <div className="advanced-content">
             <div className="advanced-fields">
-              <label className="field"><span>Encoder</span><div className="select-wrap"><select value={config.codec} onChange={(e) => selectCodec(e.target.value as BatchConfig["codec"])}><option value="hevc-main10">H.265 Main10 (VideoToolbox)</option><option value="hevc">H.265 8-bit (VideoToolbox)</option><option value="h264">H.264 8-bit (VideoToolbox)</option><option value="prores-proxy">Apple ProRes 422</option></select><ChevronDown size={15} /></div></label>
+              <label className="field"><span>Final encoder</span><div className="select-wrap"><select value={config.codec} onChange={(e) => selectCodec(e.target.value as BatchConfig["codec"])}><option value="hevc-main10">H.265 Main10 (VideoToolbox)</option><option value="hevc">H.265 8-bit (VideoToolbox)</option><option value="h264">H.264 8-bit (VideoToolbox)</option><option value="prores-proxy">Apple ProRes 422</option></select><ChevronDown size={15} /></div></label>
               <label className="field"><span>Audio</span><div className="select-wrap"><select value={config.audioMode} onChange={(e) => update("audioMode", e.target.value as BatchConfig["audioMode"])}><option value="aac">AAC · 160 kbps per track</option><option value="preserve">Preserve source audio</option><option value="none">No audio</option></select><ChevronDown size={15} /></div></label>
             </div>
             <p>{config.codec === "prores-proxy" ? `10-bit 4:2:2 editing codec. Proxy is smallest; LT, 422 and HQ progressively increase quality and size. ${config.outputHeight >= 2160 ? "4K ProRes runs one job at a time for stability." : "ProRes is limited to two parallel jobs for stability."}` : config.codec === "h264" ? "The broadest compatibility, hardware accelerated, but limited to 8-bit output." : config.codec === "hevc" ? "Smaller 8-bit files using Apple hardware acceleration." : "Recommended: compact 10-bit proxies encoded by Apple VideoToolbox."}</p>
@@ -344,7 +391,7 @@ function App() {
           <div className="summary"><span>{statusEvent?.completedFiles ?? 0} complete</span><span>{statusEvent?.skippedFiles ?? 0} skipped</span><span>{statusEvent?.failedFiles ?? 0} failed</span><span>{statusEvent?.totalFiles ?? 0} total</span></div>
           <div className="file-list">
             {fileEvents.slice(-5).map((event) => (
-              <div key={event.file}><span>{event.kind === "failed" ? <CircleAlert size={14} /> : event.kind === "completed" ? <Check size={14} /> : <Film size={14} />}{basename(event.file)}</span><em>{event.kind === "progress" ? `${Math.round(event.fileProgress)}%` : event.kind}</em></div>
+              <div key={event.file}><span>{event.kind === "failed" ? <CircleAlert size={14} /> : event.kind === "completed" ? <Check size={14} /> : <Film size={14} />}{basename(event.file)}</span><em>{event.kind === "progress" ? `${event.message ? `${event.message} · ` : ""}${Math.round(event.fileProgress)}%` : event.kind}</em></div>
             ))}
           </div>
           <div className="log">{events.filter((e) => e.message && ["failed", "log", "batch-complete", "cancelled"].includes(e.kind)).slice(-4).map((e, i) => <div key={i}>{e.message}</div>)}</div>
@@ -357,9 +404,15 @@ function App() {
           {savingPreset ? <div className="preset-editor"><input autoFocus aria-label="Preset name" placeholder="Preset name" value={presetName} onChange={(e) => setPresetName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") savePreset(); if (e.key === "Escape") setSavingPreset(false); }} /><button type="button" className="preset-save" disabled={!presetName.trim()} onClick={savePreset}>Save</button><button type="button" className="preset-cancel" onClick={() => setSavingPreset(false)}>Cancel</button></div> : <button type="button" className="save-preset" onClick={() => { setPresetName(selectedPreset); setSavingPreset(true); }} disabled={running}>Save preset</button>}
         </div>
         {!running && events.length > 0 && <button className="secondary" onClick={() => setEvents([])}><RotateCcw size={16} /> Reset</button>}
-        {running ? <button className="danger" onClick={cancel}><OctagonX size={17} /> Cancel batch</button> : <button className="primary" disabled={!ready || starting} onClick={start}><Play size={17} fill="currentColor" />{starting ? "Starting…" : "Generate proxies"}</button>}
+        {running ? <button className="danger" onClick={cancel}><OctagonX size={17} /> Cancel batch</button> : <button className="primary" disabled={!ready || starting || sourceChecking} onClick={() => void start()}><Play size={17} fill="currentColor" />{starting ? "Starting…" : "Generate proxies"}</button>}
       </footer>
     </main>
+    <dialog ref={rawDialog} className="raw-review" aria-labelledby="raw-review-title" onCancel={() => setRawReviewOpen(false)}>
+      <div className="raw-review-heading"><div><span className="eyebrow">Before you start</span><h2 id="raw-review-title">Review clip corrections</h2></div><button type="button" className="dialog-close" aria-label="Close review" onClick={() => setRawReviewOpen(false)}><X size={18} /></button></div><p>Aspect settings from {rawPlan?.project}. Check that spherical clips are 1× and anamorphic clips match the lens.</p>
+      <div className="raw-clips">{rawPlan?.clips.map((clip) => <div key={clip.file}><span>{basename(clip.file)}</span><strong>{clip.squeeze}×</strong><small>{clip.fromProject ? "From Resolve" : "Fallback setting"}</small></div>)}</div>
+      <p>Existing files are skipped when “Skip existing outputs” is enabled. Disable it to replace earlier proxies.</p>
+      <div className="dialog-actions"><button type="button" className="secondary" onClick={() => setRawReviewOpen(false)}>Back</button><button type="button" className="primary" onClick={() => void start(true)}><Play size={15} fill="currentColor" /> Start batch</button></div>
+    </dialog>
     </>
   );
 }

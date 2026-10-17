@@ -61,3 +61,46 @@ header { user-select: none; margin-left: -24px; margin-right: -24px; padding: 0 
 .preferences input[type=range] { padding: 0; accent-color: #caff55; }
 
 .window-drag-strip { position: fixed; top: 0; left: 0; right: 0; height: 34px; z-index: 10; user-select: none; }
+
+.raw-help { grid-column: 1 / -1; color: #a1a99a; font-size: 12px; line-height: 1.6; }
+.raw-help input { width: auto; margin-right: 8px; }
+.raw-review { max-width: 760px; width: calc(100% - 60px); background: #191d16; color: #e9ede3; border: 1px solid #3a422f; border-radius: 16px; padding: 24px; }
+.raw-review::backdrop { background: #000a; }
+.raw-review p { font-size: 13px; line-height: 1.6; }
+.raw-clips { max-height: 45vh; overflow: auto; margin: 18px 0; }
+.raw-clips > div { display: grid; grid-template-columns: minmax(0,1fr) 60px 110px; gap: 12px; padding: 8px 0; border-bottom: 1px solid #333b2c; font-size: 12px; }
+.raw-clips span { overflow-wrap: anywhere; }
+
+.source-detection { margin: -3px 0 14px; color: #88927e; font-size: 11px; }
+.raw-options { margin: -2px 0 16px; border: 1px solid #30382a; border-radius: 9px; background: #171c13; }
+.raw-options > summary { display: flex; align-items: center; gap: 8px; padding: 11px 13px; cursor: pointer; color: #c0c9b5; font-size: 11px; list-style: none; }
+.raw-options > summary > svg { color: #bde84e; }
+.raw-options > summary > span { margin-left: auto; color: #859176; font-size: 10px; }
+.raw-options .raw-help { padding: 0 14px 12px; font-size: 11px; }
+.raw-help label { display: flex; align-items: center; gap: 8px; }
+.raw-help input[type=checkbox] { flex: 0 0 auto; width: 14px; height: 14px; margin: 0; padding: 0; accent-color: #caff55; }
+.raw-review { box-shadow: 0 24px 90px #0009; max-height: calc(100vh - 72px); }
+.raw-review-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.raw-review .eyebrow { color: #a9bb8c; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+.raw-review h2 { font-size: 23px; letter-spacing: -.035em; margin: 6px 0 8px; }
+.raw-review p { color: #a0aa96; font-size: 12px; }
+.dialog-close { display: grid; place-items: center; width: 32px; height: 32px; flex: 0 0 auto; border: 1px solid #394231; border-radius: 8px; background: #22291c; color: #a7b29b; cursor: pointer; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #30382a; padding-top: 16px; margin-top: 18px; }
+.dialog-actions button { appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 18px; border: 1px solid transparent; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.dialog-actions .secondary { border-color: #3b4433; background: transparent; }
+.dialog-actions .secondary:hover { background: #293121; color: #e2e9d9; }
+.dialog-actions button:focus-visible, .dialog-close:focus-visible { outline: 2px solid #caff55; outline-offset: 3px; }
+.raw-clips { scrollbar-width: thin; scrollbar-color: #526142 #171d12; padding-right: 10px; }
+.raw-clips::-webkit-scrollbar { width: 6px; }
+.raw-clips::-webkit-scrollbar-track { background: #171d12; border-radius: 6px; }
+.raw-clips::-webkit-scrollbar-thumb { background: #526142; border-radius: 6px; }
+.raw-clips strong { color: #caff55; font-size: 11px; }
+.raw-clips small { color: #8d9b7e; align-self: center; }
+
+.app-version { color: #caff55; margin-right: 8px; white-space: nowrap; font-size: 12px; }
+
+.raw-pipeline { padding: 12px 14px; margin: -4px 0 17px; background: #141a10; border: 1px solid #34412a; border-radius: 8px; }
+.raw-pipeline strong { color: #c5dd9d; font-size: 12px; }.raw-pipeline strong > span { margin: 0 7px; color: #7c965c; }
+.raw-pipeline p { margin: 6px 0 0; color: #8f9c82; font-size: 11px; line-height: 1.5; }
+.raw-locked { color: #b6c1aa; justify-content: space-between; }.raw-locked small { font-size: 9px; color: #7e8b71; }
+.raw-help .raw-quality { display: block; max-width: 340px; margin-top: 14px; }.raw-quality > span { display: block; margin-bottom: 7px; }

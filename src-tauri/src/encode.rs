@@ -35,6 +35,14 @@ pub fn tool_path(name: &str) -> Option<PathBuf> {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BatchConfig {
+    #[serde(default)]
+    pub raw_mode: bool,
+    #[serde(default)]
+    pub raw_project_aspect: bool,
+    #[serde(default = "default_raw_quality")]
+    pub raw_intermediate_quality: String,
+    #[serde(default)]
+    pub raw_aspects: HashMap<String, f64>,
     pub source_dir: String,
     pub output_dir: String,
     pub filename_suffix: String,
@@ -49,6 +57,10 @@ pub struct BatchConfig {
     pub skip_existing: bool,
     #[serde(default = "default_cpu_limit")]
     pub cpu_limit_percent: u8,
+}
+
+fn default_raw_quality() -> String {
+    "standard".into()
 }
 
 fn default_cpu_limit() -> u8 {
@@ -147,7 +159,7 @@ pub fn discover_videos(folder: &Path) -> Result<Vec<PathBuf>, String> {
                 .map(|ext| {
                     matches!(
                         ext.to_ascii_lowercase().as_str(),
-                        "mp4" | "mov" | "mxf" | "m4v"
+                        "mp4" | "mov" | "mxf" | "m4v" | "crm"
                     )
                 })
                 .unwrap_or(false)
@@ -168,6 +180,9 @@ pub fn derive_width(
 }
 
 pub fn effective_parallel_jobs(config: &BatchConfig) -> usize {
+    if config.raw_mode {
+        return 1;
+    }
     if config.codec == "prores-proxy" {
         config
             .parallel_jobs
@@ -247,11 +262,13 @@ fn output_path_for_config(source: &Path, config: &BatchConfig) -> Result<PathBuf
         Path::new(&config.output_dir),
         &config.filename_suffix,
     )?;
-    Ok(if config.codec == "prores-proxy" {
-        path.with_extension("mov")
-    } else {
-        path
-    })
+    Ok(
+        if config.codec == "prores-proxy" || crate::raw::is_raw(source) {
+            path.with_extension("mov")
+        } else {
+            path
+        },
+    )
 }
 
 pub fn ffmpeg_args(
@@ -389,6 +406,39 @@ pub fn ffmpeg_args(
     args
 }
 
+fn raw_ffmpeg_args(
+    source: &Path,
+    temporary: &Path,
+    probe: &ProbeInfo,
+    config: &BatchConfig,
+    decoded: &Path,
+) -> Vec<String> {
+    let mut args = ffmpeg_args(source, temporary, probe, config);
+    let input = args.iter().position(|v| v == "-i").unwrap();
+    args[input + 1] = decoded.to_string_lossy().into_owned();
+    args.splice(
+        input + 2..input + 2,
+        ["-i".into(), source.to_string_lossy().into_owned()],
+    );
+    for value in &mut args {
+        if value == "0:a?" {
+            *value = "1:a?".into();
+        }
+    }
+    let metadata = args.iter().position(|v| v == "-map_metadata").unwrap();
+    args[metadata + 1] = "1".into();
+    let (width, height) = crate::raw::geometry(
+        probe.width,
+        probe.height,
+        config.squeeze,
+        config.output_height,
+    );
+    let filter = args.iter().position(|v| v == "-vf").unwrap();
+    args[filter + 1] =
+        format!("trim=start=0,scale={width}:{height}:flags=lanczos,setsar=1,setpts=PTS-STARTPTS");
+    args
+}
+
 #[allow(clippy::too_many_arguments)]
 fn emit(
     app: &AppHandle,
@@ -458,6 +508,8 @@ fn encode_one(
     cancel: &AtomicBool,
     cpu_limit: &AtomicU8,
     counts: &Counts,
+    raw_session: &mut Option<crate::raw::Session>,
+    raw_sources: &[PathBuf],
 ) -> Result<(), String> {
     if cancel.load(Ordering::SeqCst) {
         return Err("Cancelled".into());
@@ -488,9 +540,81 @@ fn encode_one(
             .unwrap_or("proxy"),
         Uuid::new_v4()
     ));
-    let args = ffmpeg_args(source, &temporary, &probe, config);
+    let raw_source = crate::raw::is_raw(source);
+    let mut workspace = None;
+    let mut decoded = None;
+    let mut effective = config.clone();
+    if raw_source {
+        if !config.raw_mode {
+            return Err("Canon RAW Light requires Resolve Studio mode. Enable it and review the RAW clips before starting.".into());
+        }
+        let ratio = config
+            .raw_aspects
+            .get(&source.to_string_lossy().to_string())
+            .copied()
+            .ok_or("Review the RAW clip aspect ratios before starting")?;
+        if !ratio.is_finite() || !(1.0..=2.0).contains(&ratio) {
+            return Err("Invalid RAW aspect ratio".into());
+        }
+        effective.squeeze = ratio;
+        let work = crate::raw::Workspace::new(Path::new(&config.output_dir))?;
+        emit(
+            app,
+            batch_id,
+            source,
+            index,
+            total,
+            0.0,
+            counts,
+            "started",
+            Some("Decoding Canon RAW in Resolve Studio…".into()),
+        );
+        if raw_session.is_none() {
+            *raw_session = Some(crate::raw::Session::start(config, raw_sources, cancel)?);
+        }
+        let result = raw_session.as_mut().ok_or("RAW session unavailable")?.decode(
+            serde_json::json!({"action":"decode", "source":source, "directory":work.path, "outputHeight":config.output_height}),
+            cancel,
+            &work.path,
+            |pct| {
+                emit(
+                    app,
+                    batch_id,
+                    source,
+                    index,
+                    total,
+                    pct * 0.4,
+                    counts,
+                    "progress",
+                    Some("Decoding RAW".into()),
+                );
+            },
+        )?;
+        decoded = Some(result);
+        workspace = Some(work);
+    }
+    let args = if let Some(raw) = &decoded {
+        raw_ffmpeg_args(
+            source,
+            &temporary,
+            &probe,
+            &effective,
+            Path::new(raw["input"].as_str().ok_or("Missing RAW intermediate")?),
+        )
+    } else {
+        ffmpeg_args(source, &temporary, &probe, &effective)
+    };
+
     emit(
-        app, batch_id, source, index, total, 0.0, counts, "started", None,
+        app,
+        batch_id,
+        source,
+        index,
+        total,
+        if raw_source { 40.0 } else { 0.0 },
+        counts,
+        "started",
+        None,
     );
     let ffmpeg = tool_path("ffmpeg").ok_or("FFmpeg was not found")?;
     let mut child = Command::new(ffmpeg)
@@ -546,7 +670,15 @@ fn encode_one(
                         0.0
                     };
                     emit(
-                        app, batch_id, source, index, total, pct, counts, "progress", None,
+                        app,
+                        batch_id,
+                        source,
+                        index,
+                        total,
+                        if raw_source { 40.0 + pct * 0.5 } else { pct },
+                        counts,
+                        "progress",
+                        None,
                     );
                 }
             }
@@ -566,6 +698,28 @@ fn encode_one(
                 .collect::<Vec<_>>()
                 .join("\n");
             if status.success() {
+                if let (Some(raw), Some(work)) = (&decoded, &workspace) {
+                    emit(
+                        app,
+                        batch_id,
+                        source,
+                        index,
+                        total,
+                        90.0,
+                        counts,
+                        "progress",
+                        Some("Verifying RAW frames, timecode and audio…".into()),
+                    );
+                    if let Err(error) = crate::raw::run(
+                        serde_json::json!({"action":"verify", "source":source, "output":temporary, "frames":raw["frames"], "timecode":raw["timecode"], "preserveTimecode":config.preserve_timecode, "audioMode":config.audio_mode}),
+                        cancel,
+                        &work.path,
+                        |_| {},
+                    ) {
+                        let _ = fs::remove_file(&temporary);
+                        return Err(error);
+                    }
+                }
                 fs::rename(&temporary, &output).map_err(|e| {
                     let _ = fs::remove_file(&temporary);
                     format!("Could not finalize output: {e}")
@@ -695,6 +849,17 @@ pub fn run_batch(
     let total = files.len();
     let counts = Arc::new(Counts::default());
     let next = Arc::new(AtomicUsize::new(0));
+    let raw_sources = Arc::new(
+        files
+            .iter()
+            .filter(|p| crate::raw::is_raw(p))
+            .filter(|p| {
+                !config.skip_existing
+                    || output_path_for_config(p, &config).is_ok_and(|out| !out.exists())
+            })
+            .cloned()
+            .collect::<Vec<_>>(),
+    );
     let files = Arc::new(files);
     let mut workers = Vec::new();
     for _ in 0..effective_parallel_jobs(&config) {
@@ -708,37 +873,59 @@ pub fn run_batch(
             next.clone(),
             files.clone(),
         );
-        workers.push(thread::spawn(move || loop {
-            if cancel.load(Ordering::SeqCst) {
-                break;
+        let raw_sources = raw_sources.clone();
+        workers.push(thread::spawn(move || {
+            let mut raw_session = None;
+            loop {
+                if cancel.load(Ordering::SeqCst) {
+                    break;
+                }
+                let index = next.fetch_add(1, Ordering::SeqCst);
+                let Some(source) = files.get(index) else {
+                    break;
+                };
+                if let Err(error) = encode_one(
+                    &app,
+                    &id,
+                    source,
+                    index + 1,
+                    total,
+                    &config,
+                    &cancel,
+                    &cpu_limit,
+                    &counts,
+                    &mut raw_session,
+                    &raw_sources,
+                ) {
+                    if error != "Cancelled" {
+                        counts.failed.fetch_add(1, Ordering::SeqCst);
+                        emit(
+                            &app,
+                            &id,
+                            source,
+                            index + 1,
+                            total,
+                            0.0,
+                            &counts,
+                            "failed",
+                            Some(error),
+                        );
+                    }
+                }
             }
-            let index = next.fetch_add(1, Ordering::SeqCst);
-            let Some(source) = files.get(index) else {
-                break;
-            };
-            if let Err(error) = encode_one(
-                &app,
-                &id,
-                source,
-                index + 1,
-                total,
-                &config,
-                &cancel,
-                &cpu_limit,
-                &counts,
-            ) {
-                if error != "Cancelled" {
+            if let Some(mut session) = raw_session {
+                if let Err(error) = session.finish() {
                     counts.failed.fetch_add(1, Ordering::SeqCst);
                     emit(
                         &app,
                         &id,
-                        source,
-                        index + 1,
+                        Path::new(&config.source_dir),
+                        total,
                         total,
                         0.0,
                         &counts,
-                        "failed",
-                        Some(error),
+                        "log",
+                        Some(format!("Resolve cleanup: {error}")),
                     );
                 }
             }
@@ -776,6 +963,93 @@ pub fn run_batch(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn raw_args_use_original_audio_and_bake_reviewed_aspect_once() {
+        let mut settings = config();
+        settings.output_height = 2160;
+        settings.audio_mode = "preserve".into();
+        let probe = ProbeInfo {
+            width: 6000,
+            height: 3164,
+            duration_seconds: 8.008,
+            timecode: Some("17:09:39:21".into()),
+        };
+        let args = raw_ffmpeg_args(
+            Path::new("source.CRM"),
+            Path::new("proxy.mov"),
+            &probe,
+            &settings,
+            Path::new("decode.mov"),
+        );
+        assert!(args.windows(2).any(|v| v == ["-map", "1:a?"]));
+        assert!(args.windows(2).any(|v| v == ["-c:a", "copy"]));
+        assert!(args
+            .iter()
+            .any(|v| v.contains("scale=4096:1440:flags=lanczos,setsar=1")));
+        assert!(!args.iter().any(|v| v == "0:a?"));
+    }
+
+    #[test]
+    #[ignore = "requires a running Resolve Studio and DEPROXY_RAW_SOURCE/DEPROXY_RAW_OUTPUT"]
+    fn real_resolve_raw_smoke() {
+        let source = PathBuf::from(std::env::var("DEPROXY_RAW_SOURCE").unwrap());
+        let output = PathBuf::from(std::env::var("DEPROXY_RAW_OUTPUT").unwrap());
+        fs::create_dir_all(output.parent().unwrap()).unwrap();
+        let mut settings = config();
+        settings.raw_mode = true;
+        settings.raw_project_aspect = true;
+        settings.source_dir = source.parent().unwrap().to_string_lossy().into_owned();
+        settings.output_height = 2160;
+        settings.audio_mode = "preserve".into();
+        let before = crate::raw::inspect(&settings).unwrap();
+        let aspect = before["clips"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|x| x["file"].as_str() == source.to_str())
+            .unwrap()["squeeze"]
+            .as_f64()
+            .unwrap();
+        assert_eq!(aspect, 1.5);
+        settings.squeeze = aspect;
+        let workspace = crate::raw::Workspace::new(output.parent().unwrap()).unwrap();
+        let cancel = AtomicBool::new(false);
+        let mut sources = vec![source.clone()];
+        if let Ok(second) = std::env::var("DEPROXY_RAW_SECOND") {
+            sources.push(PathBuf::from(second));
+        }
+        let mut session = crate::raw::Session::start(&settings, &sources, &cancel).unwrap();
+        let decoded = session.decode(serde_json::json!({"action":"decode","source":source,"directory":workspace.path,"outputHeight":2160}), &cancel, &workspace.path, |_| {}).unwrap();
+        let args = raw_ffmpeg_args(
+            &source,
+            &output,
+            &probe_file(&source).unwrap(),
+            &settings,
+            Path::new(decoded["input"].as_str().unwrap()),
+        );
+        let encoded = Command::new(tool_path("ffmpeg").unwrap())
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            encoded.status.success(),
+            "{}",
+            String::from_utf8_lossy(&encoded.stderr)
+        );
+        crate::raw::run(serde_json::json!({"action":"verify","source":source,"output":output,"frames":decoded["frames"],"timecode":decoded["timecode"],"preserveTimecode":true,"audioMode":"preserve"}),&cancel,&workspace.path,|_| {}).unwrap();
+        if let Some(second) = sources.get(1) {
+            let second_work = crate::raw::Workspace::new(output.parent().unwrap()).unwrap();
+            let second_decoded = session.decode(serde_json::json!({"action":"decode","source":second,"directory":second_work.path,"outputHeight":2160}), &cancel, &second_work.path, |_| {}).unwrap();
+            assert_eq!(decoded["project"], second_decoded["project"]);
+            assert_eq!(second_decoded["frames"], 30);
+        }
+        session.finish().unwrap();
+        let after = crate::raw::inspect(&settings).unwrap();
+        assert_eq!(before["project"], after["project"]);
+        let proxy = probe_file(&output).unwrap();
+        assert_eq!((proxy.width, proxy.height), (4096, 1440));
+    }
 
     #[test]
     fn changing_limit_updates_all_running_batches_without_affecting_cancellation() {
@@ -854,6 +1128,10 @@ mod tests {
 
     fn config() -> BatchConfig {
         BatchConfig {
+            raw_intermediate_quality: "standard".into(),
+            raw_mode: false,
+            raw_project_aspect: false,
+            raw_aspects: HashMap::new(),
             source_dir: "/source".into(),
             output_dir: "/output".into(),
             filename_suffix: "_proxy".into(),

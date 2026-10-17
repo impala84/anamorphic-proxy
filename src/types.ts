@@ -5,6 +5,9 @@ export type ToolStatus = {
 };
 
 export type BatchConfig = {
+  rawMode: boolean;
+  rawProjectAspect: boolean;
+  rawIntermediateQuality: "proxy" | "lt" | "standard" | "hq";
   sourceDir: string;
   outputDir: string;
   filenameSuffix: string;

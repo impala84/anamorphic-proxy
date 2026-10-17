@@ -1,4 +1,5 @@
 mod encode;
+mod raw;
 
 use encode::{run_batch, tool_path, BatchConfig, BatchManager};
 use serde::Serialize;
@@ -124,6 +125,21 @@ fn install_ffmpeg(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn inspect_source(source_dir: String) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let files = encode::discover_videos(std::path::Path::new(&source_dir))?;
+        Ok(serde_json::json!({"totalFiles": files.len(), "rawClips": files.iter().filter(|p| raw::is_raw(p)).count()}))
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn inspect_raw(config: BatchConfig) -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(move || raw::inspect(&config))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 fn start_batch(
     app: tauri::AppHandle,
     manager: State<'_, Arc<BatchManager>>,
@@ -131,6 +147,12 @@ fn start_batch(
 ) -> Result<String, String> {
     if config.source_dir.is_empty() || config.output_dir.is_empty() {
         return Err("Choose source and output folders".into());
+    }
+    if !matches!(
+        config.raw_intermediate_quality.as_str(),
+        "proxy" | "lt" | "standard" | "hq"
+    ) {
+        return Err("Choose a supported RAW decoding quality".into());
     }
     if config.squeeze <= 0.0 || config.output_height == 0 || config.bitrate_mbps <= 0.0 {
         return Err("Encoding settings must be greater than zero".into());
@@ -196,6 +218,8 @@ pub fn run() {
             resolve_source_drop,
             install_ffmpeg,
             start_batch,
+            inspect_raw,
+            inspect_source,
             cancel_batch,
             set_cpu_limit
         ])

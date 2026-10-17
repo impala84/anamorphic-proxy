@@ -18,6 +18,7 @@ jobs:
         with:
           components: clippy, rustfmt
       - run: npm ci
+      - run: python3 -m unittest discover -s src-tauri/scripts -p 'test_*.py'
       - run: npm test
       - run: npm run build
       - run: cargo test --manifest-path src-tauri/Cargo.toml

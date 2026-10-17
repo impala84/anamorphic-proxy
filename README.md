@@ -8,10 +8,44 @@ High-resolution anamorphic camera originals are beautiful, but they are unnecess
 
 DeProxy turns the known-good FFmpeg workflow into one focused utility. Pick the footage, choose its squeeze and editing resolution, and let the Mac's local hardware do the work. The resulting files are de-squeezed, square-pixel, compact, correctly tagged for QuickTime, and designed to retain the source naming and timecode needed for reliable relinking. Nothing is uploaded, and advanced codec choices remain available without overwhelming the default workflow.
 
+## Canon Cinema RAW Light (automatic Resolve Studio mode)
+
+DeProxy automatically detects Canon RAW Light `.CRM` files when a source folder is selected. A compact Resolve notice appears only for RAW footage; there is no manual format selector. This mode reads `.CRM` files through your installed DaVinci Resolve Studio. No Canon SDK or proprietary decoder is bundled. The isolated project uses unmanaged DaVinci YRGB and Resolve's default RAW development; grades and RAW overrides from the film project are not copied. It requires macOS, Python 3, Resolve Studio running with a project open, and **Preferences → System → General → External scripting → Local** enabled.
+
+Choose the source folder; Canon RAW Light is detected automatically. By default, DeProxy reads each matching source clip's Pixel Aspect Ratio from the open Resolve project. Review the clip list before starting: spherical footage should be 1× and anamorphic clips should match the lens. Unmatched clips use the squeeze control and are clearly labelled. Paths must match the originals in Resolve. Other clips' aspect settings are ignored.
+
+The correction is baked into square pixels once. RAW output is bounded to the chosen DCI size: a C80 1.5× clip at 2160p becomes 4096×1440, while spherical C80 footage becomes 4096×2160. Keep the originals' lens interpretation when using the proxies in Resolve. The earlier standard-video height-based sizing is unchanged.
+
+DeProxy saves your current Resolve project once, imports the batch into one isolated temporary project, and switches between prepared clip timelines while FFmpeg encodes each proxy. It restores your previous project once at the end of the batch, including cancellation. Do not switch projects or use Resolve while RAW decoding is active. Cancellation stops only DeProxy's isolated render, restores the previous project when it is still safe to do so, and removes temporary files. It never quits Resolve or stops an unrelated active render. Python 3 must be available in `/opt/homebrew/bin`, `/usr/local/bin`, or `/usr/bin`.
+
+**Preserve source audio** is selected when a RAW folder is detected. RAW outputs use MOV so the original PCM tracks can be copied without mixing. Before finalizing, DeProxy checks the full frame count and timecode, and compares all original audio payloads when preservation is selected. Existing outputs are skipped unless **Skip existing outputs** is disabled. Use a new output folder when trying this mode for the first time.
+
+Allow extra disk space for one ProRes Proxy intermediate, which is removed after conversion. The CPU preference controls FFmpeg encoding only; Resolve manages its RAW decoding load. Parallel jobs are limited to one in RAW mode. RAW clip attributes and grading are not changed in your existing project, and outputs are not automatically linked into it.
+
+## What's new in 0.4.3
+
+- Automatically detects Canon Cinema RAW Light files and reviews per-clip anamorphic settings.
+- Keeps one temporary Resolve project for a RAW batch, restoring the previous project at completion or cancellation.
+- Explains that output size, encoder and bitrate control the finished RAW proxy; locks parallel jobs to one visibly.
+- Adds RAW decoding quality: High (ProRes 422, default), Highest (422 HQ), Balanced (422 LT), or Compact (ProRes Proxy). The temporary file is deleted after encoding.
+- Updates review dialog styling and displays the app version beside the header tagline.
+
+## What's new in 0.4.1
+
+- Detects Canon CRM files automatically, with RAW options tucked into an expandable notice.
+- Restyles the clip review dialog, buttons, focus states and scrollbar.
+- Keeps one Resolve bridge and one isolated project for the full RAW batch, restoring the previous project once at the end.
+
 ## What's new in 0.3.5
 
 - Applies CPU preference changes immediately to active encoders during a batch.
 - Resumes throttled encoders when the limit returns to 100%.
+
+## What's new in 0.4.0
+
+- Optional Canon Cinema RAW Light decoding through installed Resolve Studio.
+- Reviews per-clip squeeze ratios for mixed folders and bakes the correction into square-pixel proxies.
+- Verifies RAW proxy frames, timecode and preserved source audio before finalizing.
 
 ## What's new in 0.3.4
 

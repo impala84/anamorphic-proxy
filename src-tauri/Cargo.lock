@@ -547,7 +547,7 @@ dependencies = [
 
 [[package]]
 name = "deproxy"
-version = "0.3.5"
+version = "0.4.3"
 dependencies = [
  "libc",
  "serde",
