@@ -997,6 +997,7 @@ mod tests {
         let output = PathBuf::from(std::env::var("DEPROXY_RAW_OUTPUT").unwrap());
         fs::create_dir_all(output.parent().unwrap()).unwrap();
         let mut settings = config();
+        settings.output_dir = output.parent().unwrap().to_string_lossy().into_owned();
         settings.raw_mode = true;
         settings.raw_project_aspect = true;
         settings.source_dir = source.parent().unwrap().to_string_lossy().into_owned();
@@ -1045,7 +1046,13 @@ mod tests {
             assert_eq!(second_decoded["frames"], 30);
         }
         session.finish().unwrap();
-        let after = crate::raw::inspect(&settings).unwrap();
+        let after = crate::raw::run(
+            serde_json::json!({"action":"status"}),
+            &cancel,
+            &workspace.path,
+            |_| {},
+        )
+        .unwrap();
         assert_eq!(before["project"], after["project"]);
         let proxy = probe_file(&output).unwrap();
         assert_eq!((proxy.width, proxy.height), (4096, 1440));

@@ -61,13 +61,14 @@ def inspect(request):
     if project.IsRenderingInProgress():
         raise RuntimeError('Wait for the current Resolve render to finish.')
     source_files = sorted(p for p in Path(request['sourceDir']).iterdir() if p.is_file() and p.suffix.lower() == '.crm')
-    source_paths = {str(p.resolve()) for p in source_files}
+    source_paths = {os.path.abspath(p) for p in source_files}
+    source_names = {p.name for p in source_files}
     ratios = {}
     if request.get('useProjectAspect', True):
         for clip in clips(project.GetMediaPool().GetRootFolder()):
             path = clip.GetClipProperty('File Path')
-            if path and str(Path(path).resolve()) in source_paths:
-                key = str(Path(path).resolve())
+            if path and Path(path).name in source_names and os.path.abspath(path) in source_paths:
+                key = os.path.abspath(path)
                 value = clip.GetClipProperty('PAR')
                 ratio = aspect(value) if value else None
                 if key in ratios and ratios[key] != ratio:
@@ -76,7 +77,7 @@ def inspect(request):
     plan = []
     for path in source_files:
         if path.is_file() and path.suffix.lower() == '.crm':
-            ratio = ratios.get(str(path.resolve()))
+            ratio = ratios.get(os.path.abspath(path))
             plan.append({'file': str(path), 'squeeze': ratio if ratio is not None else request['squeeze'], 'fromProject': ratio is not None})
     return {'project': project.GetName(), 'clips': plan}
 
@@ -228,6 +229,9 @@ class ResolveBatch:
             settings = {'TargetDir': folder, 'CustomName': 'decode', 'SelectAllFrames': True, 'ExportVideo': True, 'ExportAudio': False, 'FormatWidth': width, 'FormatHeight': height, 'FrameRate': float(props['FPS']), 'UseUniqueFilenames': True}
             if not project.SetRenderSettings(settings):
                 raise RuntimeError('Resolve rejected the RAW render settings.')
+            # Resolve's Deliver UI commits timeline/path changes asynchronously.
+            self.manager.SaveProject()
+            time.sleep(1)
             check_cancel(request)
             job = project.AddRenderJob()
             if not job:
@@ -301,6 +305,9 @@ def serve(request):
 
 
 def main(request):
+    if request['action'] == 'status':
+        project = connection().GetProjectManager().GetCurrentProject()
+        return {'project': project.GetName() if project else None}
     if request['action'] == 'serve':
         return serve(request)
     if request['action'] == 'inspect':

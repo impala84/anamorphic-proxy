@@ -111,7 +111,8 @@ pub fn run(
             }
         }
         if started.elapsed() > Duration::from_secs(60)
-            && (action == "inspect" || (action == "decode" && !connected))
+            && (matches!(action.as_str(), "inspect" | "status")
+                || (action == "decode" && !connected))
         {
             let _ = child.kill();
             let _ = child.wait();

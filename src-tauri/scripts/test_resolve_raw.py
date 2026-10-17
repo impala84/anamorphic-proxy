@@ -15,6 +15,9 @@ class RawBridgeTests(unittest.TestCase):
         patcher = patch.object(raw.tempfile, 'gettempdir', return_value=directory.name)
         patcher.start()
         self.addCleanup(patcher.stop)
+        sleeping = patch.object(raw.time, 'sleep')
+        sleeping.start()
+        self.addCleanup(sleeping.stop)
 
     def test_mixed_clip_plan_uses_source_paths_not_filenames(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -25,7 +28,7 @@ class RawBridgeTests(unittest.TestCase):
                 item=Mock();item.GetClipProperty.side_effect=lambda key,p=path,r=ratio: {'File Path':p,'PAR':r}[key];items.append(item)
             project=Mock();project.IsRenderingInProgress.return_value=False;project.GetMediaPool().GetRootFolder().GetClipList.return_value=items;project.GetMediaPool().GetRootFolder().GetSubFolderList.return_value=[];project.GetName.return_value='Film'
             resolve=Mock();resolve.GetProjectManager().GetCurrentProject.return_value=project
-            with patch.object(raw,'connection',return_value=resolve):
+            with patch.object(raw,'connection',return_value=resolve), patch.object(raw.Path,'resolve',side_effect=AssertionError('Clip review must not resolve unrelated disk paths')):
                 plan=raw.inspect({'sourceDir':folder,'squeeze':2,'useProjectAspect':True})
             self.assertEqual([x['squeeze'] for x in plan['clips']],[1.5,1.0])
             self.assertTrue(all(x['fromProject'] for x in plan['clips']))
