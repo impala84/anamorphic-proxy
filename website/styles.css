@@ -309,3 +309,17 @@ h1 em, h2 em { color: var(--acid); font-style: normal; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
   .reveal { opacity: 1; transform: none; }
 }
+
+.raw-hero-note { color: #8f9c83; font-size: .76rem; line-height: 1.7; margin: 15px 0 0; max-width: 420px; }
+.raw-hero-note strong { color: #becbab; font-weight: 600; }.raw-hero-note a { color: var(--acid); white-space: nowrap; }
+.raw-support { margin-top: 24px; padding: 34px; border: 1px solid #475a32; border-radius: 12px; background: linear-gradient(125deg,#1d2716,#171c14); scroll-margin-top: 94px; }
+.raw-support-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.raw-requirement { border: 1px solid #657f43; border-radius: 6px; padding: 8px 11px; color: #d5f6a8; background: #27371c; font-size: .73rem; }
+.raw-support h3 { font-size: clamp(1.6rem,3vw,2.2rem); letter-spacing: -.04em; margin: 22px 0 14px; }
+.raw-intro { color: #aab79c; max-width: 900px; line-height: 1.7; font-size: .9rem; }.raw-intro strong { color: #e0ebd4; }
+.raw-features { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 28px; margin: 28px 0; padding-top: 23px; border-top: 1px solid #35452a; }
+.raw-features h4 { margin: 0 0 10px; font-size: .9rem; color: #dde8d0; }.raw-features p,.raw-batch-note { margin: 0; font-size: .79rem; line-height: 1.7; color: #9aa98b; }
+.raw-workflow { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 16px; padding: 18px; border: 1px solid #3b4c2d; border-radius: 8px; background: #11180d; font-size: .8rem; color: #b7c8a4; }
+.raw-workflow i { color: #6f8a50; font-style: normal; }.raw-workflow strong { color: var(--acid); }
+.raw-batch-note { margin-top: 17px; }.raw-setup { margin-top: 22px; padding-top: 18px; border-top: 1px solid #35452a; color: #afc09c; font-size: .8rem; line-height: 1.7; }.raw-setup summary { cursor: pointer; font-weight: 600; }.raw-setup ul { margin-bottom: 0; padding-left: 22px; }.raw-setup li { margin-top: 8px; }
+@media(max-width:700px) { .raw-support { padding: 23px; }.raw-features { grid-template-columns: 1fr; gap: 20px; }.raw-workflow { justify-content: flex-start; gap: 10px; font-size: .73rem; }.raw-requirement { font-size: .69rem; } }

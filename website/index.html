@@ -63,6 +63,7 @@
             <a class="text-link" href="#how">See how it works <span>↓</span></a>
           </div>
           <p class="requirement">Free and open source · macOS 12+ · Apple silicon</p>
+          <p class="raw-hero-note">Canon RAW Light support <strong>requires DaVinci Resolve Studio.</strong> <a href="#canon-raw">See the RAW workflow →</a></p>
         </div>
 
         <div class="hero-visual reveal">
@@ -115,7 +116,7 @@
         <div class="steps">
           <article class="step reveal"><span class="step-number">1</span><div class="step-icon folder-icon"><i></i></div><h3>Choose your footage</h3><p>Select a source folder or drop any supported video onto the window. DeProxy creates a Proxy folder beside it by default.</p></article>
           <article class="step reveal"><span class="step-number">2</span><div class="step-icon squeeze-icon"><i></i><i></i><b>1.5×</b></div><h3>Set the squeeze</h3><p>Choose 1.33×, 1.5×, 1.6×, 1.8×, 2× or enter a custom value. Then pick the editing resolution.</p></article>
-          <article class="step reveal"><span class="step-number">3</span><div class="step-icon progress-icon"><i></i><b>69%</b></div><h3>Generate proxies</h3><p>Process clips in parallel, follow progress file by file, and safely skip proxies you have already made.</p></article>
+          <article class="step reveal"><span class="step-number">3</span><div class="step-icon progress-icon"><i></i><b>69%</b></div><h3>Generate proxies</h3><p>Batch-process your footage, follow progress file by file, and safely skip existing proxies. Regular video supports parallel jobs; Canon RAW Light runs one clip at a time.</p></article>
         </div>
         <div class="feature-line reveal" aria-label="Core features">
           <span>Hardware HEVC</span><span>Preserved timecode</span><span>Batch processing</span><span>Local presets</span><span>Nothing uploaded</span>
@@ -129,6 +130,19 @@
           </div>
           <code>brew install ffmpeg</code>
         </aside>
+        <article class="raw-support reveal" id="canon-raw" aria-labelledby="canon-raw-title">
+          <div class="raw-support-heading"><span class="spec-kicker">Canon Cinema RAW Light</span><strong class="raw-requirement">Requires DaVinci Resolve Studio</strong></div>
+          <h3 id="canon-raw-title">RAW originals. Editing-ready proxies.</h3>
+          <p class="raw-intro">DeProxy automatically detects Canon <code>.CRM</code> files and uses your installed <strong>DaVinci Resolve Studio</strong> to decode them locally. This RAW workflow requires the Studio edition; the free edition of Resolve is not supported. Regular video files do not require Resolve.</p>
+          <div class="raw-features">
+            <div><h4>Detected automatically</h4><p>Choose a folder containing Canon RAW Light clips. DeProxy shows the RAW options when you need them.</p></div>
+            <div><h4>Mixed lenses, corrected per clip</h4><p>Review each clip’s squeeze setting from your open Resolve project, including mixed spherical and anamorphic shots. Corrections are baked into square-pixel proxies, up to 4K DCI width.</p></div>
+            <div><h4>Quality stays in your hands</h4><p>Choose RAW decoding quality and final output size. Adjust the bitrate for H.265 or H.264, or select a quality profile for ProRes output.</p></div>
+          </div>
+          <div class="raw-workflow" aria-label="RAW processing workflow"><span>Canon RAW Light</span><i aria-hidden="true">→</i><span>Resolve Studio decoding</span><i aria-hidden="true">→</i><strong>Your chosen proxy format</strong></div>
+          <p class="raw-batch-note">Resolve creates a temporary 10-bit ProRes file; DeProxy encodes the finished proxy and removes the temporary file. Each RAW batch uses one isolated Resolve project, processes one clip at a time, and restores your previous project when finished. Source audio and timecode can be preserved.</p>
+          <details class="raw-setup"><summary>What you need for Canon RAW Light</summary><ul><li>DaVinci Resolve Studio and Python 3 installed on your Mac.</li><li>Resolve Studio open with a project, and <strong>Preferences → System → General → External scripting → Local</strong> enabled.</li><li>Matching originals in that project to read per-clip aspect settings. Unmatched clips use the selected fallback squeeze and are labelled in the review.</li><li>Space for one temporary ProRes file. Leave Resolve available to DeProxy during the batch; its RAW development uses defaults without copying your film grades.</li></ul></details>
+        </article>
       </section>
 
       <section class="proxies section" id="proxies">
@@ -214,7 +228,7 @@
           <a class="button primary large" data-latest-download href="https://github.com/impala84/anamorphic-proxy/releases/download/v0.4.3/DeProxy-0.4.3-Apple-Silicon.dmg">Download for Mac <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0 0 4-4m-4 4L6 9M4 16h12" /></svg></a>
           <a class="button ghost" href="https://github.com/impala84/anamorphic-proxy">View on GitHub</a>
         </div>
-        <small>Requires macOS 12 or newer and Apple silicon. FFmpeg can be installed from inside DeProxy. This build is not Apple-notarised, so Control-click → Open may be required the first time.</small>
+        <small>Requires macOS 12 or newer and Apple silicon. FFmpeg can be installed from inside DeProxy. Canon RAW Light support additionally requires <strong>DaVinci Resolve Studio</strong> and Python 3. This build is not Apple-notarised, so Control-click → Open may be required the first time.</small>
       </section>
     </main>
 
